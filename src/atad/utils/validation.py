@@ -1,0 +1,121 @@
+"""Input validation for everything the analyst types.
+
+Nothing reaches a subprocess or the file system without passing through
+one of these functions first.
+"""
+
+from __future__ import annotations
+
+import ipaddress
+import re
+from dataclasses import dataclass
+
+from atad.core.exceptions import ScopeError, ValidationError
+
+CASE_ID_RE = re.compile(r"^CASE-\d{3,6}$")
+
+# RFC 1123 hostname: labels of letters, digits and hyphens, max 253 chars.
+_LABEL = r"(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
+HOSTNAME_RE = re.compile(rf"^{_LABEL}(\.{_LABEL})*\.?$")
+
+# Largest range atad will accept in one target (/22 = 1024 addresses).
+MAX_RANGE_ADDRESSES = 1024
+
+
+@dataclass(frozen=True)
+class ValidatedTarget:
+    value: str        # normalized text form
+    kind: str         # ip | cidr | hostname
+    is_public: bool   # True when any address is outside private/lab ranges
+
+
+def validate_case_id(case_id: str) -> str:
+    """Accept ``CASE-001`` style ids (case-insensitive input)."""
+    value = (case_id or "").strip().upper()
+    if not CASE_ID_RE.match(value):
+        raise ValidationError(f"invalid case id {case_id!r} (expected e.g. CASE-001)")
+    return value
+
+
+def _is_internal(net: ipaddress.IPv4Network | ipaddress.IPv6Network) -> bool:
+    """Private, loopback or link-local — the ranges a lab investigation uses."""
+    return net.is_private or net.is_loopback or net.is_link_local
+
+
+def validate_target(raw: str, *, allow_public: bool = False) -> ValidatedTarget:
+    """Validate a network target: single IP, CIDR range or hostname.
+
+    Rules:
+    * Strings that could carry shell or tool options are rejected.
+    * Ranges larger than :data:`MAX_RANGE_ADDRESSES` are rejected.
+    * Public addresses need an explicit ``allow_public=True``.
+    * Multicast, unspecified and reserved addresses are rejected.
+    """
+    value = (raw or "").strip()
+    if not value:
+        raise ValidationError("target is empty")
+    if value.startswith("-"):
+        # Would be read as an option by nmap/ping.
+        raise ValidationError(f"target must not start with '-': {raw!r}")
+    if any(c.isspace() for c in value) or len(value) > 253:
+        raise ValidationError(f"invalid target {raw!r}")
+
+    # Single IP
+    try:
+        ip = ipaddress.ip_address(value)
+    except ValueError:
+        ip = None
+    if ip is not None:
+        net = ipaddress.ip_network(ip)
+        _reject_special(net, raw)
+        public = not _is_internal(net)
+        if public and not allow_public:
+            raise ScopeError(f"{value} is a public address; use --allow-public only if you are authorized")
+        return ValidatedTarget(str(ip), "ip", public)
+
+    # CIDR range
+    if "/" in value:
+        try:
+            net = ipaddress.ip_network(value, strict=False)
+        except ValueError as exc:
+            raise ValidationError(f"invalid CIDR range {raw!r}: {exc}") from None
+        _reject_special(net, raw)
+        if net.num_addresses > MAX_RANGE_ADDRESSES:
+            raise ScopeError(
+                f"{net} has {net.num_addresses} addresses; the limit is {MAX_RANGE_ADDRESSES}"
+            )
+        public = not _is_internal(net)
+        if public and not allow_public:
+            raise ScopeError(f"{net} is a public range; use --allow-public only if you are authorized")
+        return ValidatedTarget(str(net), "cidr", public)
+
+    # Hostname (resolution happens later; resolved IPs are checked again then)
+    if HOSTNAME_RE.match(value):
+        return ValidatedTarget(value.lower().rstrip("."), "hostname", False)
+
+    raise ValidationError(f"invalid target {raw!r} (expected IP, CIDR or hostname)")
+
+
+def _reject_special(net: ipaddress.IPv4Network | ipaddress.IPv6Network, raw: str) -> None:
+    if net.is_multicast or net.is_unspecified or net.is_reserved:
+        raise ValidationError(f"{raw!r} is a multicast, unspecified or reserved address")
+
+
+def target_in_scope(candidate: str, scope: list[str]) -> bool:
+    """True when ``candidate`` (an IP) is covered by any scope entry.
+
+    Scope entries are normalized values from :func:`validate_target`.
+    Hostname entries only match the same hostname text.
+    """
+    try:
+        ip = ipaddress.ip_address(candidate)
+    except ValueError:
+        return candidate.lower().rstrip(".") in {s.lower() for s in scope}
+
+    for entry in scope:
+        try:
+            if ip in ipaddress.ip_network(entry, strict=False):
+                return True
+        except ValueError:
+            continue  # hostname entry
+    return False
