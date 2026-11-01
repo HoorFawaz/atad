@@ -8,7 +8,7 @@ results, correlates them across sources and produces an investigation report.
 Collect → Normalize → Correlate → Investigate → Report
 ```
 
-> Status: early development (milestone M1 — foundation).
+> Status: early development (milestone M2 — safe execution & tool checks).
 > MVP platform: Windows. Read-only by design: atad never deletes, quarantines,
 > blocks or executes anything it investigates.
 
@@ -23,6 +23,7 @@ pip install -e ".[dev]"
 ## Usage (current milestone)
 
 ```bash
+atad doctor                     # which tools are installed, admin rights
 atad case new --name "Suspicious workstation" --profile soc
 atad case list
 atad case show CASE-001

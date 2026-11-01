@@ -18,6 +18,7 @@ from atad.core.exceptions import StorageError, ValidationError
 from atad.evidence.models import (
     Case,
     Evidence,
+    Execution,
     Finding,
     Observable,
     Target,
@@ -290,6 +291,103 @@ class CaseRepository:
             )
             for r in rows
         ]
+
+    # ------------------------------------------------------------- executions
+
+    def add_execution(self, ex: Execution) -> int:
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO executions(case_id, module, tool, tool_version, command, target,"
+                " collection_mode, started_at, finished_at, status, exit_code, raw_ref,"
+                " raw_sha256, stderr_excerpt, error, elevated)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                self._execution_values(ex),
+            )
+            return int(cur.lastrowid)
+
+    def finish_execution(self, ex: Execution) -> None:
+        if ex.id is None:
+            raise ValidationError("execution has no id")
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE executions SET case_id=?, module=?, tool=?, tool_version=?, command=?,"
+                " target=?, collection_mode=?, started_at=?, finished_at=?, status=?,"
+                " exit_code=?, raw_ref=?, raw_sha256=?, stderr_excerpt=?, error=?, elevated=?"
+                " WHERE id=?",
+                (*self._execution_values(ex), ex.id),
+            )
+
+    def list_executions(self) -> list[Execution]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT * FROM executions ORDER BY id").fetchall()
+        return [
+            Execution(
+                id=r["id"],
+                case_id=r["case_id"],
+                module=r["module"],
+                tool=r["tool"],
+                tool_version=r["tool_version"],
+                command=json.loads(r["command"]) if r["command"] else None,
+                target=r["target"],
+                collection_mode=r["collection_mode"],
+                started_at=_dt(r["started_at"]),
+                finished_at=_dt(r["finished_at"]),
+                status=r["status"],
+                exit_code=r["exit_code"],
+                raw_ref=r["raw_ref"],
+                raw_sha256=r["raw_sha256"],
+                stderr_excerpt=r["stderr_excerpt"],
+                error=r["error"],
+                elevated=None if r["elevated"] is None else bool(r["elevated"]),
+            )
+            for r in rows
+        ]
+
+    @staticmethod
+    def _execution_values(ex: Execution) -> tuple:
+        return (
+            ex.case_id,
+            ex.module.value,
+            ex.tool,
+            ex.tool_version,
+            json.dumps(ex.command) if ex.command is not None else None,
+            ex.target,
+            ex.collection_mode.value,
+            _ts(ex.started_at),
+            _ts(ex.finished_at),
+            ex.status.value,
+            ex.exit_code,
+            ex.raw_ref,
+            ex.raw_sha256,
+            ex.stderr_excerpt,
+            ex.error,
+            None if ex.elevated is None else int(ex.elevated),
+        )
+
+    # ------------------------------------------------------------------ tools
+
+    def record_tool(
+        self,
+        name: str,
+        *,
+        available: bool,
+        version: str | None,
+        path: str | None,
+        reason: str | None,
+        detected_at: datetime,
+    ) -> None:
+        case_id = self.get_case().id
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO tools(case_id, name, version, path, available, reason, detected_at)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (case_id, name, version, path, int(available), reason, _ts(detected_at)),
+            )
+
+    def list_tools(self) -> list[dict]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT * FROM tools ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
 
     # ----------------------------------------------------------------- counts
 

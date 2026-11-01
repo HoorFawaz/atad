@@ -285,6 +285,33 @@ class Case(BaseModel):
         return ensure_utc(v)
 
 
+class Execution(BaseModel):
+    """One run of an external tool or an internal collector."""
+
+    id: int | None = None
+    case_id: str
+    module: SourceModule
+    tool: str
+    tool_version: str | None = None
+    command: list[str] | None = None      # exact argument list (no shell)
+    target: str | None = None
+    collection_mode: CollectionMode
+    started_at: datetime = Field(default_factory=utc_now)
+    finished_at: datetime | None = None
+    status: ExecutionStatus
+    exit_code: int | None = None
+    raw_ref: str | None = None
+    raw_sha256: str | None = None
+    stderr_excerpt: str | None = None
+    error: str | None = None
+    elevated: bool | None = None
+
+    @field_validator("started_at", "finished_at")
+    @classmethod
+    def _utc(cls, v: datetime | None) -> datetime | None:
+        return None if v is None else ensure_utc(v)
+
+
 class Target(BaseModel):
     """An authorized network target (single IP, CIDR range or hostname)."""
 
