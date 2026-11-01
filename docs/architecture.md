@@ -217,23 +217,57 @@ data is still saved and hashed the same way.
 
 ## 9. CLI structure
 
+### 9.1 Three levels of use
+
+| Level | Example | What runs | Output |
+|---|---|---|---|
+| Whole module | `atad net --target 192.168.1.15` | Every check of the module | Module report |
+| Chosen checks | `atad net --target 192.168.1.15 --only ping,scan` | Only the listed checks | Module report |
+| | `atad net --target 192.168.1.15 --skip dns` | All checks except the listed ones | Module report |
+| Single check | `atad net scan --target 192.168.1.15` | One check | Summary on screen + evidence stored |
+| Everything | `atad triage --profile soc` | All modules + correlation | Full investigation report |
+
+Rules for `--only` / `--skip`:
+
+* Comma-separated check names; unknown names are rejected with the list of valid ones.
+* `--only` and `--skip` cannot be used together.
+* Checks left out by the analyst are recorded as `skipped` with reason
+  `excluded_by_user`, and the report shows them as *not run by choice* — never as failures.
+* Running a module without `--case` creates a new case automatically; its
+  `--target` is validated and added to that case's scope (private ranges only
+  unless `--allow-public`).
+
+### 9.2 Checks per module
+
+| Module | Checks | Default `--only` |
+|---|---|---|
+| `net` | `interfaces`, `ping`, `scan`, `dns` | all |
+| `host` | `info`, `processes`, `connections`, `users`, `startup` | all |
+| `files` | `hash`, `info`, `scan` | all |
+| `log` | `security`, `sysmon` (local) — or `--path` for import | all available |
+
+### 9.3 Full command list
+
 ```text
-atad doctor                                  tool & privilege check
+atad doctor                                        tool & privilege check
 atad case new --name "..." [--profile soc] [--simulated]
 atad case list | show CASE-001
 atad scope add --case CASE-001 --target 192.168.1.15
 
-atad net interfaces | ping | scan | dns       --case, --target
-atad host info | processes | connections | users | startup   --case
-atad files hash | info | scan --path ...      --case
-atad log collect --case ...                   (local, live export)
-atad log import --path ... --source-host ...  (import mode)
-atad log search --case ... --keyword ...
-atad ioc load --file iocs.txt --case ...
-atad ioc check --case ...
+atad net   [--only ...|--skip ...] --target ...  [--case ...]
+atad net   interfaces | ping | scan | dns
+atad host  [--only ...|--skip ...]               [--case ...]
+atad host  info | processes | connections | users | startup
+atad files [--only ...|--skip ...] --path ...    [--case ...]
+atad files hash | info | scan --path ...
+atad log   [--only ...|--skip ...]               [--case ...]   (local, live export)
+atad log   import --path ... --source-host ...                 (import mode)
+atad log   search --case ... --keyword ...
+atad ioc   load --file iocs.txt --case ...
+atad ioc   check --case ...
 atad correlate --case ...
-atad timeline --case ...
-atad report --case ... --format html|json
+atad timeline  --case ...
+atad report    --case ... --format html|json
 atad triage [--target IP] --profile soc|dfir|full [--case ...]
 ```
 
