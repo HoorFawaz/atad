@@ -9,6 +9,7 @@ import typer
 
 from atad import __version__
 from atad.cli import cases as cases_cli
+from atad.cli import files as files_cli
 from atad.cli import scope as scope_cli
 from atad.cli.context import state
 from atad.cli.doctor import doctor
@@ -22,6 +23,7 @@ app = typer.Typer(
 app.add_typer(cases_cli.app, name="case", help="Create, list and inspect investigation cases.")
 app.add_typer(scope_cli.app, name="scope", help="Manage the authorized network scope of a case.")
 app.command("doctor")(doctor)
+app.add_typer(files_cli.app, name="files")
 
 
 def _version(value: bool) -> None:

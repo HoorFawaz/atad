@@ -9,7 +9,7 @@ from typing import Any, Callable, TypeVar
 
 import typer
 
-from atad.cases.manager import CaseManager
+from atad.cases.manager import CaseManager, OpenCase
 from atad.core.exceptions import AtadError
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -24,6 +24,19 @@ class _State:
 
 
 state = _State()
+
+
+def get_or_create_case(case_id: str | None, auto_name: str) -> tuple[OpenCase, bool]:
+    """Open ``case_id``, or create a new case when none is given.
+
+    Returns (case, created).
+    """
+    mgr = state.manager()
+    if case_id:
+        return mgr.open_case(case_id), False
+    oc = mgr.create_case(auto_name)
+    typer.secho(f"Created {oc.case.id} ({oc.path})", fg=typer.colors.GREEN)
+    return oc, True
 
 
 def handle_errors(func: F) -> F:

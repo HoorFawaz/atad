@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import IO, Sequence
+from typing import IO, Callable, Sequence
 
 from atad.cases.manager import OpenCase
 from atad.core.exceptions import ValidationError
@@ -317,6 +317,73 @@ def execute_and_record(
     case.repo.finish_execution(final)
     _log_line(case, final)
     return RecordedExecution(execution=final, result=result, raw_path=raw_path)
+
+
+@dataclass
+class RecordedCollection:
+    execution: Execution
+    raw: bytes | None
+    raw_path: Path | None
+
+
+def execute_collector(
+    case: OpenCase,
+    *,
+    module: SourceModule,
+    tool: str,
+    collection_mode: CollectionMode,
+    collect: Callable[[], bytes],
+    tool_version: str | None = None,
+    target: str | None = None,
+    description: list[str] | None = None,
+) -> RecordedCollection:
+    """Run an in-process collector (hashlib, psutil, ...) with the same record
+    keeping as an external tool: execution row, raw capture saved read-only
+    with its SHA-256, and a log line.
+
+    ``description`` is stored in place of a command line so the report can
+    show what was done (e.g. ``["hash", "C:\\evidence"]``).
+    """
+    ex = Execution(
+        case_id=case.case.id,
+        module=module,
+        tool=tool,
+        tool_version=tool_version,
+        command=description,
+        target=target,
+        collection_mode=collection_mode,
+        status=ExecutionStatus.FAILED,
+        elevated=is_elevated(),
+    )
+    ex_id = case.repo.add_execution(ex)
+    started = utc_now()
+    raw: bytes | None = None
+    error: str | None = None
+    try:
+        raw = collect()
+        status = ExecutionStatus.SUCCESS
+    except Exception as exc:  # a collector bug must not stop the whole run
+        status = ExecutionStatus.FAILED
+        error = f"{type(exc).__name__}: {exc}"
+
+    raw_ref = raw_sha = None
+    raw_path = None
+    if raw is not None:
+        raw_ref, raw_sha = save_raw(case, ex_id, tool, raw, suffix="json")
+        raw_path = case.path / raw_ref
+
+    final = ex.model_copy(update={
+        "id": ex_id,
+        "started_at": started,
+        "finished_at": utc_now(),
+        "status": status,
+        "raw_ref": raw_ref,
+        "raw_sha256": raw_sha,
+        "error": error,
+    })
+    case.repo.finish_execution(final)
+    _log_line(case, final)
+    return RecordedCollection(execution=final, raw=raw, raw_path=raw_path)
 
 
 def record_skipped(

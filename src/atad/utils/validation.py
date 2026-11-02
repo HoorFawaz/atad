@@ -37,6 +37,35 @@ def validate_case_id(case_id: str) -> str:
     return value
 
 
+def validate_evidence_path(raw: str | Path, *, must_exist: bool = True) -> "Path":
+    """Validate a file or folder path given by the analyst; returns an absolute path."""
+    from pathlib import Path
+
+    text = str(raw or "").strip()
+    if not text:
+        raise ValidationError("path is empty")
+    if "\x00" in text:
+        raise ValidationError("path contains a NUL byte")
+    path = Path(text).expanduser()
+    try:
+        path = path.absolute()
+    except OSError as exc:
+        raise ValidationError(f"invalid path {raw!r}: {exc}") from None
+    if must_exist and not (path.exists() or path.is_symlink()):
+        raise ValidationError(f"path does not exist: {path}")
+    return path
+
+
+def validate_source_host(raw: str) -> str:
+    """Host name typed by the analyst for imported evidence (shown as declared)."""
+    value = (raw or "").strip()
+    if not value:
+        raise ValidationError("--source-host is empty")
+    if len(value) > 253 or any(ord(c) < 32 for c in value):
+        raise ValidationError(f"invalid source host {raw!r}")
+    return value
+
+
 def _is_internal(net: ipaddress.IPv4Network | ipaddress.IPv6Network) -> bool:
     """Private, loopback or link-local — the ranges a lab investigation uses."""
     return net.is_private or net.is_loopback or net.is_link_local
