@@ -8,7 +8,7 @@
 
 | Decision | Choice | Reason |
 |---|---|---|
-| MVP platform | **Windows first** | Sysmon + EVTX give the richest evidence for the demo. Linux adapters come after the MVP; the design keeps them possible. |
+| MVP platform | **Windows first, Linux next (M9)** | Sysmon + EVTX give the richest evidence for the demo. Linux follows as milestone M9 with Linux-native tools replacing the Windows-only ones (§3.1). |
 | Where data is collected | **Local mode + Import mode** | Host, log and file evidence can only be collected from the machine atad runs on. |
 | Meaning of `--target` | Network target only | It never changes where host/log/file data comes from. |
 | Storage | SQLite per case + raw files on disk | Simple, portable, exportable. |
@@ -64,6 +64,35 @@ data that was actually collected from the analyst's own machine.
 |---|---|
 | Security | 4624 (logon success), 4625 (logon failure), 4688 (process created), 4720 (user created) |
 | Sysmon | 1 (process create), 3 (network connection), 11 (file create) |
+
+### 3.1 Linux equivalents (milestone M9)
+
+Linux is not dropped: it is the next platform after the MVP. Every
+Windows-only integration is replaced on Linux by the tool SOC/DFIR teams
+normally use there. Modules, check names and the evidence model stay the
+same; only the adapter changes.
+
+| Purpose | Windows (MVP) | Linux (M9) |
+|---|---|---|
+| Network interfaces | `ipconfig` | `ip -j addr` / `ip -j route` (JSON output) |
+| DNS lookups | `nslookup` | `dig` |
+| Connectivity | `ping` | `ping` |
+| Ports & services | Nmap | Nmap |
+| Processes / connections | psutil | psutil (+ `ss -tunap` as fallback) |
+| Endpoint queries | OSQuery (optional) | OSQuery (optional) |
+| Process / network telemetry | Sysmon | auditd (`ausearch`) — or Sysmon for Linux if installed |
+| System & security logs (live) | `wevtutil` export of Security log | `journalctl -o json` + `/var/log/auth.log` or `/var/log/secure` |
+| Log file parsing | python-evtx (`.evtx`) | Python parsers for auth.log, syslog, journal JSON, audit.log |
+| Persistence / startup | Run keys, services, scheduled tasks, Startup folder | systemd units, cron, `/etc/rc.local`, shell profiles, `authorized_keys` |
+| File hashing / YARA | hashlib / yara-python | hashlib / yara-python |
+
+Linux log subset planned for M9:
+
+| Source | Events |
+|---|---|
+| auth.log / secure | SSH accepted / failed logins, `sudo`, `useradd` |
+| journal | sshd, sudo, systemd service start |
+| auditd | `execve` (process), `connect` (network) |
 
 ---
 
@@ -298,3 +327,4 @@ reported as `unavailable`, never as an error that stops the run.
 | M6 IOC & Correlation | IOC lists, rules R1–R5, timeline | Labelled dataset: precision/recall reported |
 | M7 Reports | JSON + HTML | Report built from demo case; every finding links to evidence |
 | M8 Triage & Demo | Profiles, `atad triage`, demo dataset, metrics | Full demo scenario runs end to end |
+| M9 Linux | Linux adapters from §3.1 (ip, dig, journalctl, auth.log, auditd, persistence locations) | Same modules and commands work on Linux; Linux fixtures parse; `atad doctor` shows Linux tools instead of "n/a" |
