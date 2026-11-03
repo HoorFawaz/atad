@@ -143,42 +143,52 @@ class CaseRepository:
 
     def add_evidence(self, ev: Evidence) -> Evidence:
         """Store evidence and its observables; returns it with its new id."""
-        if ev.id is not None:
-            raise ValidationError("evidence already has an id; ids are assigned on insert")
+        return self.add_evidence_many([ev])[0]
+
+    def add_evidence_many(self, items: list[Evidence]) -> list[Evidence]:
+        """Store many evidence records in one transaction (all or nothing)."""
+        for ev in items:
+            if ev.id is not None:
+                raise ValidationError("evidence already has an id; ids are assigned on insert")
+        if not items:
+            return []
+        stored: list[Evidence] = []
         with self.connect() as conn:
             n = conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
-            ev_id = f"EVD-{n + 1:06d}"
-            conn.execute(
-                "INSERT INTO evidence(id, case_id, kind, source_module, source_tool, tool_version,"
-                " collection_mode, host, host_declared, collected_at, event_time, execution_id,"
-                " raw_ref, raw_sha256, summary, data, simulated, status)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (
-                    ev_id,
-                    ev.case_id,
-                    ev.kind.value,
-                    ev.source_module.value,
-                    ev.source_tool,
-                    ev.tool_version,
-                    ev.collection_mode.value,
-                    ev.host,
-                    int(ev.host_declared),
-                    _ts(ev.collected_at),
-                    _ts(ev.event_time),
-                    ev.execution_id,
-                    ev.raw_ref,
-                    ev.raw_sha256,
-                    ev.summary,
-                    json.dumps(ev.data, ensure_ascii=False, sort_keys=True, default=str),
-                    int(ev.simulated),
-                    ev.status.value,
-                ),
-            )
-            conn.executemany(
-                "INSERT OR IGNORE INTO observables(evidence_id, type, value) VALUES (?,?,?)",
-                [(ev_id, o.type.value, o.value) for o in ev.observables],
-            )
-        return ev.model_copy(update={"id": ev_id})
+            for i, ev in enumerate(items, start=1):
+                ev_id = f"EVD-{n + i:06d}"
+                conn.execute(
+                    "INSERT INTO evidence(id, case_id, kind, source_module, source_tool, tool_version,"
+                    " collection_mode, host, host_declared, collected_at, event_time, execution_id,"
+                    " raw_ref, raw_sha256, summary, data, simulated, status)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        ev_id,
+                        ev.case_id,
+                        ev.kind.value,
+                        ev.source_module.value,
+                        ev.source_tool,
+                        ev.tool_version,
+                        ev.collection_mode.value,
+                        ev.host,
+                        int(ev.host_declared),
+                        _ts(ev.collected_at),
+                        _ts(ev.event_time),
+                        ev.execution_id,
+                        ev.raw_ref,
+                        ev.raw_sha256,
+                        ev.summary,
+                        json.dumps(ev.data, ensure_ascii=False, sort_keys=True, default=str),
+                        int(ev.simulated),
+                        ev.status.value,
+                    ),
+                )
+                conn.executemany(
+                    "INSERT OR IGNORE INTO observables(evidence_id, type, value) VALUES (?,?,?)",
+                    [(ev_id, o.type.value, o.value) for o in ev.observables],
+                )
+                stored.append(ev.model_copy(update={"id": ev_id}))
+        return stored
 
     def get_evidence(self, evidence_id: str) -> Evidence:
         with self.connect() as conn:

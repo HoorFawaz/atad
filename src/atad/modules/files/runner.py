@@ -108,7 +108,7 @@ def run_files(
                 simulated=case.case.simulated,
             )
             outcome.capture = capture
-            outcome.evidence = [case.repo.add_evidence(e) for e in to_evidence(capture, ctx)]
+            outcome.evidence = case.repo.add_evidence_many(to_evidence(capture, ctx))
         result.outcomes.append(outcome)
 
     # Walk the module's own order so the record reads naturally.

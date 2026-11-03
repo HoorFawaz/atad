@@ -238,7 +238,7 @@ def save_raw(case: OpenCase, execution_id: int, tool: str, data: bytes, suffix: 
     path = case.path / "raw" / name
     with open(path, "xb") as fh:  # 'x': never overwrite existing evidence
         fh.write(data)
-    os.chmod(path, stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
+    _protect(path)
     return f"raw/{name}", sha256_bytes(data)
 
 
@@ -384,6 +384,126 @@ def execute_collector(
     case.repo.finish_execution(final)
     _log_line(case, final)
     return RecordedCollection(execution=final, raw=raw, raw_path=raw_path)
+
+
+def _protect(path: Path) -> None:
+    os.chmod(path, stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
+
+
+def _sha256_and_size(path: Path) -> tuple[str, int]:
+    import hashlib
+
+    h, size = hashlib.sha256(), 0
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+            size += len(chunk)
+    return h.hexdigest(), size
+
+
+def execute_to_file(
+    case: OpenCase,
+    *,
+    module: SourceModule,
+    tool: str,
+    collection_mode: CollectionMode,
+    build_args: Callable[[Path], list[str]],
+    out_suffix: str,
+    tool_version: str | None = None,
+    target: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
+) -> RecordedExecution:
+    """Run a tool that writes its result to a file (e.g. ``wevtutil epl``).
+
+    The tool writes straight into the case's ``raw/`` folder; the file is then
+    hashed and made read-only like any other raw output.
+    """
+    ex = Execution(
+        case_id=case.case.id, module=module, tool=tool, tool_version=tool_version,
+        target=target, collection_mode=collection_mode,
+        status=ExecutionStatus.FAILED, elevated=is_elevated(),
+    )
+    ex_id = case.repo.add_execution(ex)
+    out = case.path / "raw" / f"EXE-{ex_id:04d}_{_safe_name(tool)}.{out_suffix}"
+    if out.exists():  # never overwrite evidence
+        raise ValidationError(f"raw output already exists: {out}")
+    argv = validate_args(build_args(out))
+    result = run_command(argv, timeout=timeout)
+
+    status, error = result.status, result.error
+    raw_ref = raw_sha = None
+    raw_path = None
+    if out.is_file():
+        raw_sha, _ = _sha256_and_size(out)
+        _protect(out)
+        raw_ref, raw_path = f"raw/{out.name}", out
+    elif status is ExecutionStatus.SUCCESS:
+        status, error = ExecutionStatus.FAILED, "tool reported success but wrote no output file"
+
+    final = ex.model_copy(update={
+        "id": ex_id, "command": argv,
+        "started_at": result.started_at, "finished_at": result.finished_at,
+        "status": status, "exit_code": result.exit_code,
+        "raw_ref": raw_ref, "raw_sha256": raw_sha,
+        "stderr_excerpt": (result.stderr + result.stdout).decode("utf-8", "replace")[:STDERR_EXCERPT] or None
+        if status is not ExecutionStatus.SUCCESS else None,
+        "error": error,
+    })
+    case.repo.finish_execution(final)
+    _log_line(case, final)
+    return RecordedExecution(execution=final, result=result, raw_path=raw_path)
+
+
+def import_file(
+    case: OpenCase,
+    *,
+    module: SourceModule,
+    tool: str,
+    source: Path,
+    collection_mode: CollectionMode = CollectionMode.IMPORT,
+    tool_version: str | None = None,
+    target: str | None = None,
+) -> RecordedCollection:
+    """Copy an evidence file into ``raw/`` (read-only, hashed) before analysis.
+
+    atad always analyses its own copy, never the analyst's original file.
+    The copy's hash is computed while copying and checked against the
+    source once more afterwards, to catch a file that changed mid-copy.
+    """
+    import hashlib
+
+    ex = Execution(
+        case_id=case.case.id, module=module, tool=tool, tool_version=tool_version,
+        command=["import", str(source)], target=target, collection_mode=collection_mode,
+        status=ExecutionStatus.FAILED, elevated=is_elevated(),
+    )
+    ex_id = case.repo.add_execution(ex)
+    started = utc_now()
+    dest = case.path / "raw" / f"EXE-{ex_id:04d}_{_safe_name(source.stem)}{source.suffix.lower()}"
+    raw_ref = raw_sha = error = None
+    raw_path = None
+    status = ExecutionStatus.SUCCESS
+    try:
+        h = hashlib.sha256()
+        with open(source, "rb") as src, open(dest, "xb") as dst:
+            for chunk in iter(lambda: src.read(1024 * 1024), b""):
+                h.update(chunk)
+                dst.write(chunk)
+        raw_sha = h.hexdigest()
+        _protect(dest)
+        raw_ref, raw_path = f"raw/{dest.name}", dest
+        if _sha256_and_size(source)[0] != raw_sha:
+            status, error = ExecutionStatus.FAILED, "source file changed while it was being copied"
+    except OSError as exc:
+        status, error = ExecutionStatus.FAILED, f"could not copy {source}: {exc.strerror or exc}"
+
+    final = ex.model_copy(update={
+        "id": ex_id, "started_at": started, "finished_at": utc_now(), "status": status,
+        "raw_ref": raw_ref, "raw_sha256": raw_sha, "error": error,
+    })
+    case.repo.finish_execution(final)
+    _log_line(case, final)
+    return RecordedCollection(execution=final, raw=None, raw_path=raw_path)
 
 
 def record_skipped(
