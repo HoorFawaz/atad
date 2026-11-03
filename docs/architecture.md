@@ -48,8 +48,10 @@ data that was actually collected from the analyst's own machine.
 
 | Integration | How atad uses it | Realistic for MVP? | Dependency type |
 |---|---|---|---|
-| Nmap | `nmap -oX -` (XML), safe profiles only | Yes | Optional external |
-| Ping / ipconfig / nslookup | Native, parsed output | Yes | Built-in OS |
+| Nmap | `nmap -sT ... -oX -` (XML); profiles `quick` / `standard`, TCP connect, no scripts | Yes | Optional external |
+| Ping | Native `ping`; reachable = exit code 0 **and** a `TTL=` reply line | Yes | Built-in OS |
+| Interfaces | psutil (`net_if_addrs`, `net_if_stats`) | Yes | Mandatory Python |
+| DNS | System resolver (`getaddrinfo`, `gethostbyaddr`), 10 s timeout | Yes | Built-in |
 | Processes / connections | `psutil` (Python) | Yes — more reliable than parsing `tasklist`/`netstat` | Mandatory Python |
 | OSQuery | `osqueryi --json` | Possible, not needed for demo | Optional external (post-MVP) |
 | Sysmon | Read its EVTX log (Event IDs 1, 3, 11) | Yes, if Sysmon is installed | Optional external |
@@ -57,6 +59,12 @@ data that was actually collected from the analyst's own machine.
 | YARA | `yara-python` (Windows wheels exist) | Yes | Optional Python extra |
 | SHA-256 / file metadata | `hashlib`, `os.stat` | Yes | Built-in |
 | Linux auth/syslog | Plain-text parsers | Post-MVP | — |
+
+**Why no `ipconfig` / `nslookup` parsing (decided in M5):** their text output
+changes with the Windows display language (e.g. Arabic Windows), so parsing it
+would break on real machines. psutil and the system resolver return the same
+data in a structured form. For the same reason, ping is judged by the `TTL=`
+marker and the exit code, not by English words such as "Reply from".
 
 ### Supported log subset (MVP)
 
@@ -74,8 +82,8 @@ same; only the adapter changes.
 
 | Purpose | Windows (MVP) | Linux (M9) |
 |---|---|---|
-| Network interfaces | `ipconfig` | `ip -j addr` / `ip -j route` (JSON output) |
-| DNS lookups | `nslookup` | `dig` |
+| Network interfaces | psutil | psutil (+ `ip -j route` for routes) |
+| DNS lookups | system resolver | system resolver (+ `dig` for record types) |
 | Connectivity | `ping` | `ping` |
 | Ports & services | Nmap | Nmap |
 | Processes / connections | psutil | psutil (+ `ss -tunap` as fallback) |
@@ -83,7 +91,7 @@ same; only the adapter changes.
 | Process / network telemetry | Sysmon | auditd (`ausearch`) — or Sysmon for Linux if installed |
 | System & security logs (live) | `wevtutil` export of Security log | `journalctl -o json` + `/var/log/auth.log` or `/var/log/secure` |
 | Log file parsing | python-evtx (`.evtx`) | Python parsers for auth.log, syslog, journal JSON, audit.log |
-| Persistence / startup | Run keys, services, scheduled tasks, Startup folder | systemd units, cron, `/etc/rc.local`, shell profiles, `authorized_keys` |
+| Persistence / startup | Run keys, Startup folders, auto-start services (scheduled tasks: post-MVP) | systemd units, cron, `/etc/rc.local`, shell profiles, `authorized_keys` |
 | File hashing / YARA | hashlib / yara-python | hashlib / yara-python |
 
 Linux log subset planned for M9:

@@ -56,24 +56,6 @@ class Ping(ExternalTool):
     required = True
 
 
-class Ipconfig(ExternalTool):
-    name = "ipconfig"
-    purpose = "network interfaces"
-    executables = ("ipconfig",)
-    version_args = ()
-    supported_os = WIN
-    required = True
-
-
-class Nslookup(ExternalTool):
-    name = "nslookup"
-    purpose = "DNS lookups"
-    executables = ("nslookup",)
-    version_args = ()
-    supported_os = WIN
-    required = True
-
-
 class Wevtutil(ExternalTool):
     name = "wevtutil"
     purpose = "export Windows event logs"
@@ -121,6 +103,6 @@ class Sysmon(ToolAdapter):
 
 ALL_TOOLS: tuple[type[ToolAdapter], ...] = (
     Psutil, PythonEvtx, Jinja2, YaraPython,
-    Ping, Ipconfig, Nslookup, Wevtutil,
+    Ping, Wevtutil,
     Nmap, Sysmon, OsQuery,
 )

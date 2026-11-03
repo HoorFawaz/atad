@@ -8,7 +8,7 @@ results, correlates them across sources and produces an investigation report.
 Collect → Normalize → Correlate → Investigate → Report
 ```
 
-> Status: early development (milestone M4 — log investigation).
+> Status: early development (milestone M5 — host & network).
 > MVP platform: Windows. Read-only by design: atad never deletes, quarantines,
 > blocks or executes anything it investigates.
 
@@ -41,7 +41,22 @@ atad log                                           # live, on the suspect machin
 atad log --only security --hours 48
 atad log import --path E:\logs --source-host WS-07  # .evtx copied from another machine
 atad log search --case CASE-001 --keyword failed_login
+
+# This machine (run atad on the suspect machine, as admin)
+atad host                                          # info, processes, connections, users, startup
+atad host --only processes,connections
+atad host startup
+
+# Network (authorized targets only)
+atad net --target 192.168.1.15                     # interfaces + ping + Nmap + DNS
+atad net --target 192.168.1.0/24 --only scan --profile quick
+atad net scan --target 192.168.1.15 --ports 22,80,443,3389
+atad net interfaces
 ```
+
+Without `--case`, `atad net` creates a case and authorizes its `--target`.
+With `--case`, the target must already be in that case's scope
+(`atad scope add`). Public addresses need `--allow-public`.
 
 YARA rules are read from `--rules`, `$ATAD_RULES` or `./rules`.
 `rules/demo/` holds demo rules that match **simulated** markers only.

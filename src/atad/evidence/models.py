@@ -64,6 +64,9 @@ class EvidenceKind(str, Enum):
     FILE = "file"
     YARA_MATCH = "yara_match"
     IOC_MATCH = "ioc_match"
+    USER_SESSION = "user_session"
+    PERSISTENCE = "persistence"
+    PING = "ping"
 
 
 class EvidenceStatus(str, Enum):

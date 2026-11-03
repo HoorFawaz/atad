@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- SIMULATED: hand-written Nmap output for a lab /29 range -->
+<nmaprun scanner="nmap" args="nmap -sT -sV --version-light -T3 --top-ports 1000 --open -oX - 192.168.1.8/29" version="7.94" xmloutputversion="1.05">
+<host><status state="up" reason="conn-refused"/>
+<address addr="192.168.1.15" addrtype="ipv4"/>
+<address addr="00:0C:29:AA:BB:CC" addrtype="mac" vendor="VMware"/>
+<hostnames><hostname name="lab-ws-01.lab.local" type="PTR"/></hostnames>
+<ports>
+<port protocol="tcp" portid="135"><state state="open"/><service name="msrpc" product="Microsoft Windows RPC"/></port>
+<port protocol="tcp" portid="445"><state state="open"/><service name="microsoft-ds"/></port>
+<port protocol="tcp" portid="3389"><state state="open"/><service name="ms-wbt-server" product="Microsoft Terminal Services"/></port>
+<port protocol="tcp" portid="8080"><state state="closed"/><service name="http-proxy"/></port>
+</ports></host>
+<host><status state="up"/>
+<address addr="192.168.1.10" addrtype="ipv4"/>
+<hostnames/>
+<ports>
+<port protocol="tcp" portid="22"><state state="open"/><service name="ssh" product="OpenSSH" version="9.6p1" extrainfo="Ubuntu"/></port>
+</ports></host>
+<host><status state="down"/><address addr="192.168.1.11" addrtype="ipv4"/></host>
+<runstats><finished time="1794014200" elapsed="12.34" exit="success"/><hosts up="2" down="6" total="8"/></runstats>
+</nmaprun>

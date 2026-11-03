@@ -10,7 +10,9 @@ import typer
 from atad import __version__
 from atad.cli import cases as cases_cli
 from atad.cli import files as files_cli
+from atad.cli import host as host_cli
 from atad.cli import log as log_cli
+from atad.cli import net as net_cli
 from atad.cli import scope as scope_cli
 from atad.cli.context import state
 from atad.cli.doctor import doctor
@@ -26,6 +28,8 @@ app.add_typer(scope_cli.app, name="scope", help="Manage the authorized network s
 app.command("doctor")(doctor)
 app.add_typer(files_cli.app, name="files")
 app.add_typer(log_cli.app, name="log")
+app.add_typer(host_cli.app, name="host")
+app.add_typer(net_cli.app, name="net")
 
 
 def _version(value: bool) -> None:
