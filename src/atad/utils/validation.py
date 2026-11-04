@@ -18,8 +18,10 @@ CASE_ID_RE = re.compile(r"^CASE-\d{3,6}$")
 _LABEL = r"(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
 HOSTNAME_RE = re.compile(rf"^{_LABEL}(\.{_LABEL})*\.?$")
 
-# Largest range atad will accept in one target (/22 = 1024 addresses).
+# Default largest range in one target (/22 = 1024 addresses); --max-hosts can
+# raise it up to HARD_MAX_RANGE_ADDRESSES (/16).
 MAX_RANGE_ADDRESSES = 1024
+HARD_MAX_RANGE_ADDRESSES = 65536
 
 
 @dataclass(frozen=True)
@@ -71,15 +73,18 @@ def _is_internal(net: ipaddress.IPv4Network | ipaddress.IPv6Network) -> bool:
     return net.is_private or net.is_loopback or net.is_link_local
 
 
-def validate_target(raw: str, *, allow_public: bool = False) -> ValidatedTarget:
+def validate_target(raw: str, *, allow_public: bool = False,
+                    max_addresses: int = MAX_RANGE_ADDRESSES) -> ValidatedTarget:
     """Validate a network target: single IP, CIDR range or hostname.
 
     Rules:
     * Strings that could carry shell or tool options are rejected.
-    * Ranges larger than :data:`MAX_RANGE_ADDRESSES` are rejected.
+    * Ranges larger than ``max_addresses`` (default 1024, at most 65536) are rejected.
     * Public addresses need an explicit ``allow_public=True``.
     * Multicast, unspecified and reserved addresses are rejected.
     """
+    if not 1 <= max_addresses <= HARD_MAX_RANGE_ADDRESSES:
+        raise ValidationError(f"--max-hosts must be between 1 and {HARD_MAX_RANGE_ADDRESSES}")
     value = (raw or "").strip()
     if not value:
         raise ValidationError("target is empty")
@@ -109,9 +114,10 @@ def validate_target(raw: str, *, allow_public: bool = False) -> ValidatedTarget:
         except ValueError as exc:
             raise ValidationError(f"invalid CIDR range {raw!r}: {exc}") from None
         _reject_special(net, raw)
-        if net.num_addresses > MAX_RANGE_ADDRESSES:
+        if net.num_addresses > max_addresses:
             raise ScopeError(
-                f"{net} has {net.num_addresses} addresses; the limit is {MAX_RANGE_ADDRESSES}"
+                f"{net} has {net.num_addresses} addresses; the limit is {max_addresses} "
+                f"(raise it with --max-hosts, up to {HARD_MAX_RANGE_ADDRESSES})"
             )
         public = not _is_internal(net)
         if public and not allow_public:

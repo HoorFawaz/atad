@@ -59,6 +59,10 @@ def test_public_needs_explicit_permission():
     assert t.is_public
 
 
+def test_large_range_limit_configurable():
+    assert validate_target("10.0.0.0/16", max_addresses=65536).kind == "cidr"
+
+
 def test_large_range_rejected():
     with pytest.raises(ScopeError):
         validate_target("10.0.0.0/16")

@@ -8,9 +8,23 @@ results, correlates them across sources and produces an investigation report.
 Collect → Normalize → Correlate → Investigate → Report
 ```
 
-> Status: early development (milestone M5 — host & network).
+> Status: early development (milestone M5 — host & network, single-file build).
 > MVP platform: Windows. Read-only by design: atad never deletes, quarantines,
 > blocks or executes anything it investigates.
+
+## Install
+
+**Analysts:** download `atad-<version>-windows-x86_64.zip` from Releases, check it
+against `SHA256SUMS.txt`, unzip, and run `atad.exe` — no Python needed.
+Keep the `rules` folder next to `atad.exe`.
+
+```powershell
+Get-FileHash .\atad-0.1.0-windows-x86_64.zip -Algorithm SHA256
+.\atad\atad.exe doctor
+```
+
+**Build the executable yourself** (on Windows): `pip install -e ".[yara]" pyinstaller`
+then `python packaging/build.py` → `dist\atad.exe`.
 
 ## Install (development)
 

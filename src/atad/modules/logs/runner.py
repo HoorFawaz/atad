@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from atad.adapters.base import ParseContext
-from atad.adapters.catalog import PythonEvtx, Sysmon, Wevtutil
+from atad.adapters.catalog import EvtxRust, PythonEvtx, Sysmon, Wevtutil
 from atad.cases.manager import OpenCase
 from atad.core.execution import execute_to_file, import_file, record_skipped
 from atad.core.platform import WINDOWS, current_os, local_hostname
@@ -86,7 +86,7 @@ def _parse_into_case(case: OpenCase, outcome: SourceOutcome, evtx_path: Path,
     except Exception as exc:  # unreadable/corrupted file
         stats.errors.append(f"could not read file: {exc}")
     if stats.records_read == 0 and not stats.errors:
-        # python-evtx returns nothing for a damaged file; never let that look
+        # A parser may return nothing for a damaged file; never let that look
         # like a clean log.
         stats.errors.append("no records could be read — the log is empty, cleared or damaged")
     # Store in time order so evidence ids follow the timeline.
@@ -95,12 +95,21 @@ def _parse_into_case(case: OpenCase, outcome: SourceOutcome, evtx_path: Path,
     outcome.stats = stats
 
 
+def parser_tool() -> tuple[str, str | None]:
+    """(name, version) of the EVTX parser that will be used."""
+    for adapter in (EvtxRust(), PythonEvtx()):
+        info = adapter.detect()
+        if info.available:
+            return adapter.name, info.version
+    return "evtx", None
+
+
 def _ctx(case: OpenCase, ex: Execution, host: str, mode: CollectionMode, declared: bool,
-         version: str | None) -> ParseContext:
+         version: str | None, tool: str = "evtx") -> ParseContext:
     return ParseContext(
         case_id=case.case.id, host=host, collection_mode=mode, host_declared=declared,
         execution_id=ex.id, raw_ref=ex.raw_ref, raw_sha256=ex.raw_sha256,
-        tool_version=version, simulated=case.case.simulated,
+        tool_version=version, simulated=case.case.simulated, tool=tool,
     )
 
 
@@ -122,21 +131,21 @@ def run_log_import(case: OpenCase, path: Path, source_host: str,
     host = validate_source_host(source_host)
     mode = CollectionMode.IMPORT
     result = LogRunResult(case=case, host=host, collection_mode=mode)
-    version = PythonEvtx().detect().version
+    tool, version = parser_tool()
 
     for src in find_evtx_files(path):
         if not is_evtx(src):
-            ex = record_skipped(case, module=SourceModule.LOG, tool="python-evtx",
+            ex = record_skipped(case, module=SourceModule.LOG, tool=tool,
                                 collection_mode=mode, status=ExecutionStatus.UNAVAILABLE,
                                 reason=f"not a valid .evtx file: {src}", target=host)
             result.outcomes.append(SourceOutcome(src.name, ex))
             continue
-        rec = import_file(case, module=SourceModule.LOG, tool="python-evtx", source=src,
+        rec = import_file(case, module=SourceModule.LOG, tool=tool, source=src,
                           tool_version=version, target=host)
         outcome = SourceOutcome(src.name, rec.execution)
         if rec.raw_path is not None and rec.execution.status is ExecutionStatus.SUCCESS:
             _parse_into_case(case, outcome, rec.raw_path,
-                             _ctx(case, rec.execution, host, mode, True, version), max_events)
+                             _ctx(case, rec.execution, host, mode, True, version, tool), max_events)
         result.outcomes.append(outcome)
     return result
 
@@ -172,7 +181,7 @@ def run_log_live(case: OpenCase, checks: list[str], *, excluded: list[str] | Non
     mode = CollectionMode.LOCAL
     result = LogRunResult(case=case, host=host, collection_mode=mode)
     excluded = excluded or []
-    version = PythonEvtx().detect().version
+    tool, version = parser_tool()
     on_windows = current_os() == WINDOWS
     wevtutil = Wevtutil().detect() if on_windows else None
 
@@ -209,7 +218,7 @@ def run_log_live(case: OpenCase, checks: list[str], *, excluded: list[str] | Non
         outcome = SourceOutcome(check, rec.execution)
         if rec.raw_path is not None and rec.execution.status is ExecutionStatus.SUCCESS:
             _parse_into_case(case, outcome, rec.raw_path,
-                             _ctx(case, rec.execution, host, mode, False, version), max_events)
+                             _ctx(case, rec.execution, host, mode, False, version, tool), max_events)
         result.outcomes.append(outcome)
     return result
 

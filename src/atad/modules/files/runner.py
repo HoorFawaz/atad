@@ -30,8 +30,22 @@ TOOL_FOR_CHECK = {"hash": "hashlib", "info": "os.stat", "scan": "yara-python"}
 
 
 def default_rules_path() -> Path:
-    """``ATAD_RULES`` if set, otherwise ``./rules``."""
-    return Path(os.environ.get("ATAD_RULES", "rules"))
+    """Where YARA rules are looked for when ``--rules`` is not given.
+
+    1. ``ATAD_RULES`` environment variable
+    2. ``./rules`` in the current folder
+    3. ``rules/`` next to the atad executable (release package layout)
+    """
+    import sys
+
+    if os.environ.get("ATAD_RULES"):
+        return Path(os.environ["ATAD_RULES"])
+    here = Path("rules")
+    if here.is_dir():
+        return here
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "rules"
+    return here
 
 
 @dataclass

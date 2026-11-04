@@ -122,11 +122,13 @@ class CaseManager:
     # --------------------------------------------------------------- scope
 
     def add_scope(
-        self, case_id: str, raw_target: str, *, allow_public: bool = False, note: str = ""
+        self, case_id: str, raw_target: str, *, allow_public: bool = False, note: str = "",
+        max_addresses: int | None = None,
     ) -> tuple[Target, bool]:
         """Authorize a network target for a case. Returns (target, newly_added)."""
         oc = self.open_case(case_id)
-        vt = validate_target(raw_target, allow_public=allow_public)
+        limit = {"max_addresses": max_addresses} if max_addresses else {}
+        vt = validate_target(raw_target, allow_public=allow_public, **limit)
         target = Target(
             case_id=oc.case.id,
             value=vt.value,

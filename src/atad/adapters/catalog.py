@@ -22,12 +22,19 @@ class Psutil(PythonLibrary):
     required = True
 
 
+class EvtxRust(PythonLibrary):
+    name = "evtx"
+    purpose = "fast .evtx reader (Rust, same parser as Chainsaw)"
+    module = "evtx"
+    distribution = "evtx"
+    required = True
+
+
 class PythonEvtx(PythonLibrary):
     name = "python-evtx"
-    purpose = "read Windows .evtx log files"
+    purpose = "slow fallback .evtx reader"
     module = "Evtx"
     distribution = "python-evtx"
-    required = True
 
 
 class Jinja2(PythonLibrary):
@@ -76,14 +83,6 @@ class Nmap(ExternalTool):
     version_pattern = r"Nmap version (\S+)"
 
 
-class OsQuery(ExternalTool):
-    name = "osquery"
-    purpose = "endpoint queries (post-MVP)"
-    executables = ("osqueryi",)
-    version_args = ("--version",)
-    version_pattern = r"osqueryi? version (\S+)"
-
-
 class Sysmon(ToolAdapter):
     """Sysmon is detected by its event log channel, which atad reads."""
 
@@ -102,7 +101,7 @@ class Sysmon(ToolAdapter):
 
 
 ALL_TOOLS: tuple[type[ToolAdapter], ...] = (
-    Psutil, PythonEvtx, Jinja2, YaraPython,
+    Psutil, EvtxRust, PythonEvtx, Jinja2, YaraPython,
     Ping, Wevtutil,
-    Nmap, Sysmon, OsQuery,
+    Nmap, Sysmon,
 )

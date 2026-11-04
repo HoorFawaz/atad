@@ -172,8 +172,38 @@ def test_scope_hostname_must_be_listed_and_resolve_inside(monkeypatch):
 
 def test_run_net_refuses_out_of_scope_before_running(case):
     with pytest.raises(ScopeError):
-        nr.run_net(case, ["ping", "scan"], target="10.1.1.1")
+        nr.run_net(case, ["ping", "scan"], target="10.1.1.1", auto_scope=False)
     assert case.repo.list_executions() == []
+
+
+def test_internal_target_recorded_in_scope(case, monkeypatch):
+    monkeypatch.setattr(nr.Ping, "detect", lambda self: nr.Ping()._info(False, reason="test"))
+    r = nr.run_net(case, ["ping"], target="10.1.1.1")
+    assert r.scope_added and r.scope_added.value == "10.1.1.1"
+    assert case.repo.list_targets()[0].note == "added automatically by atad net"
+    r2 = nr.run_net(case, ["ping"], target="10.1.1.1")
+    assert r2.scope_added is None                      # already covered
+
+
+def test_public_target_still_needs_permission(case):
+    with pytest.raises(ScopeError):
+        nr.run_net(case, ["ping"], target="8.8.8.8")
+    assert case.repo.list_targets() == []
+
+
+def test_dns_on_public_ip_needs_no_scope(case, monkeypatch):
+    monkeypatch.setattr(nc.socket, "gethostbyaddr", lambda ip: ("dns.google", [], [ip]))
+    r = nr.run_net(case, ["dns"], target="8.8.8.8")
+    assert r.outcome("dns").execution.status is ExecutionStatus.SUCCESS
+    assert case.repo.list_targets() == []              # nothing touched, nothing authorized
+
+
+def test_max_hosts(case):
+    with pytest.raises(ScopeError, match="max-hosts"):
+        nr.run_net(case, ["scan"], target="10.0.0.0/20")
+    with pytest.raises(ValidationError):
+        validate_target("10.0.0.0/8", max_addresses=10_000_000)
+    assert validate_target("10.0.0.0/20", max_addresses=4096).kind == "cidr"
 
 
 def test_run_net_without_target(case):

@@ -6,7 +6,7 @@ from typing import Optional
 
 import typer
 
-from atad.cli.context import get_or_create_case, handle_errors, state
+from atad.cli.context import get_or_create_case, handle_errors
 from atad.cli.output import exit_code, print_checks, print_list
 from atad.evidence.models import EvidenceKind
 from atad.modules.checks import select_checks
@@ -26,7 +26,9 @@ CaseOpt = typer.Option(
 ProfileOpt = typer.Option("standard", "--profile", help=f"Scan profile: {', '.join(NMAP_PROFILES)}.")
 PortsOpt = typer.Option(None, "--ports", help="Ports to scan, e.g. 22,80,443,8000-8100.")
 PublicOpt = typer.Option(False, "--allow-public",
-                         help="Allow a public address (only with written authorization).")
+                         help="Allow ping/scan of a public address (only with written authorization).")
+MaxHostsOpt = typer.Option(None, "--max-hosts",
+                           help="Largest range accepted (default 1024, up to 65536).")
 
 
 @app.callback()
@@ -40,19 +42,20 @@ def net_all(
     profile: str = ProfileOpt,
     ports: Optional[str] = PortsOpt,
     allow_public: bool = PublicOpt,
+    max_hosts: Optional[int] = MaxHostsOpt,
 ) -> None:
     """Run all network checks (or a chosen set with --only / --skip)."""
     if ctx.invoked_subcommand is not None:
         return
     sel = select_checks(CHECKS, only, skip)
-    _execute(sel.selected, sel.excluded, target, case, profile, ports, allow_public)
+    _execute(sel.selected, sel.excluded, target, case, profile, ports, allow_public, max_hosts)
 
 
 @app.command("interfaces")
 @handle_errors
 def interfaces(case: Optional[str] = CaseOpt) -> None:
     """Network interfaces and addresses of this machine."""
-    _execute(["interfaces"], [], None, case, "standard", None, False)
+    _execute(["interfaces"], [], None, case, "standard", None, False, None)
 
 
 def _targeted(check: str):
@@ -63,8 +66,9 @@ def _targeted(check: str):
         profile: str = ProfileOpt,
         ports: Optional[str] = PortsOpt,
         allow_public: bool = PublicOpt,
+        max_hosts: Optional[int] = MaxHostsOpt,
     ) -> None:
-        _execute([check], [], target, case, profile, ports, allow_public)
+        _execute([check], [], target, case, profile, ports, allow_public, max_hosts)
     return command
 
 
@@ -73,19 +77,21 @@ app.command("scan", help="Nmap scan with a safe profile (TCP connect, no scripts
 app.command("dns", help="Forward (name -> IP) or reverse (IP -> name) lookup.")(_targeted("dns"))
 
 
-def _execute(checks, excluded, target, case_id, profile, ports, allow_public) -> None:
+def _execute(checks, excluded, target, case_id, profile, ports, allow_public, max_hosts) -> None:
+    from atad.modules.net.runner import TOUCHES_TARGET
+    from atad.utils.validation import validate_target
+
+    if target:
+        # Validate BEFORE creating anything, with the same rules run_net uses.
+        touches = any(c in TOUCHES_TARGET for c in checks)
+        validate_target(target, allow_public=allow_public or not touches,
+                        **({"max_addresses": max_hosts} if max_hosts else {}))
     label = f"net: {target}" if target else "net: interfaces"
-    if case_id is None and target:
-        # Validate the target BEFORE creating anything.
-        from atad.utils.validation import validate_target
-        validate_target(target, allow_public=allow_public)
-    oc, created = get_or_create_case(case_id, label)
-    if created and target:
-        t, _ = state.manager().add_scope(oc.case.id, target, allow_public=allow_public,
-                                         note="added automatically by atad net")
-        typer.echo(f"  scope: {t.value} authorized for {oc.case.id}")
+    oc, _ = get_or_create_case(case_id, label)
     r = run_net(oc, checks, target=target, excluded=excluded, profile=profile,
-                ports=ports, allow_public=allow_public)
+                ports=ports, allow_public=allow_public, max_hosts=max_hosts)
+    if r.scope_added:
+        typer.echo(f"  scope: {r.scope_added.value} authorized for {oc.case.id} (recorded)")
     _print(r)
     raise typer.Exit(code=exit_code(r.outcomes))
 

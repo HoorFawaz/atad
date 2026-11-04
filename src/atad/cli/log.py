@@ -10,6 +10,7 @@ import typer
 from atad.cli.context import get_or_create_case, handle_errors, state
 from atad.evidence.models import ExecutionStatus
 from atad.modules.checks import select_checks
+from atad.modules.logs.evtx_reader import DEFAULT_MAX_EVENTS
 from atad.modules.logs.mapping import KEYWORDS
 from atad.modules.logs.runner import (
     CHECKS,
@@ -28,6 +29,8 @@ app = typer.Typer(
 )
 
 CaseOpt = typer.Option(None, "--case", "-c", help="Case id (a new case is created if omitted).")
+MaxEventsOpt = typer.Option(DEFAULT_MAX_EVENTS, "--max-events", min=1, max=100_000_000,
+                            help="Stop after this many records per log file.")
 
 _COLOR = {
     ExecutionStatus.SUCCESS: typer.colors.GREEN,
@@ -45,13 +48,15 @@ def log_live(
     skip: Optional[str] = typer.Option(None, "--skip", help="All logs except these."),
     hours: int = typer.Option(DEFAULT_HOURS, "--hours", help="How far back to collect."),
     case: Optional[str] = CaseOpt,
+    max_events: int = MaxEventsOpt,
 ) -> None:
     """Collect logs from THIS machine (run atad on the suspect machine, as admin)."""
     if ctx.invoked_subcommand is not None:
         return
     selection = select_checks(CHECKS, only, skip)
     oc, _ = get_or_create_case(case, "logs: live collection")
-    result = run_log_live(oc, selection.selected, excluded=selection.excluded, hours=hours)
+    result = run_log_live(oc, selection.selected, excluded=selection.excluded, hours=hours,
+                          max_events=max_events)
     _print(result, f"live, last {hours} hour(s)")
     _exit(result)
 
@@ -62,11 +67,12 @@ def log_import(
     path: str = typer.Option(..., "--path", help=".evtx file or folder copied from the suspect machine."),
     source_host: str = typer.Option(..., "--source-host", help="Machine the logs came from."),
     case: Optional[str] = CaseOpt,
+    max_events: int = MaxEventsOpt,
 ) -> None:
     """Import .evtx files copied from another machine."""
     target = validate_evidence_path(path)
     oc, _ = get_or_create_case(case, f"logs: {source_host}")
-    result = run_log_import(oc, target, source_host)
+    result = run_log_import(oc, target, source_host, max_events=max_events)
     if not result.outcomes:
         typer.secho(f"No .evtx files found in {target}", fg=typer.colors.YELLOW)
         raise typer.Exit(code=2)
@@ -125,7 +131,7 @@ def _print(r: LogRunResult, label: str) -> None:
                 line += f", other event types ignored: {sum(o.unsupported.values())}"
             typer.echo(line)
             if st.truncated:
-                typer.secho("    stopped at the event limit — not every record was read",
+                typer.secho("    stopped at the event limit — not every record was read (use --max-events)",
                             fg=typer.colors.YELLOW)
             if st.record_errors:
                 typer.secho(f"    unreadable records: {st.record_errors}", fg=typer.colors.YELLOW)

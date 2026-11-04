@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import typer
 
 from atad.cli.context import handle_errors, state
@@ -18,9 +20,13 @@ def add(
     allow_public: bool = typer.Option(
         False, "--allow-public", help="Allow a public address (only with written authorization)."
     ),
+    max_hosts: Optional[int] = typer.Option(
+        None, "--max-hosts", help="Largest range accepted (default 1024, up to 65536)."
+    ),
 ) -> None:
     """Authorize a network target for a case."""
-    t, added = state.manager().add_scope(case, target, allow_public=allow_public, note=note)
+    t, added = state.manager().add_scope(case, target, allow_public=allow_public, note=note,
+                                         max_addresses=max_hosts)
     if added:
         typer.secho(f"Added to scope: {t.value} ({t.kind})", fg=typer.colors.GREEN)
         if t.is_public:

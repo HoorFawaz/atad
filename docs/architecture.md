@@ -53,9 +53,9 @@ data that was actually collected from the analyst's own machine.
 | Interfaces | psutil (`net_if_addrs`, `net_if_stats`) | Yes | Mandatory Python |
 | DNS | System resolver (`getaddrinfo`, `gethostbyaddr`), 10 s timeout | Yes | Built-in |
 | Processes / connections | `psutil` (Python) | Yes — more reliable than parsing `tasklist`/`netstat` | Mandatory Python |
-| OSQuery | `osqueryi --json` | Possible, not needed for demo | Optional external (post-MVP) |
+| OSQuery | Not used in the MVP (psutil covers the same data) | Post-MVP | — |
 | Sysmon | Read its EVTX log (Event IDs 1, 3, 11) | Yes, if Sysmon is installed | Optional external |
-| Windows Event Logs | Live: `wevtutil epl` → `.evtx` file; Import: `.evtx` files; parse with `python-evtx` | Yes, documented subset | Mandatory Python |
+| Windows Event Logs | Live: `wevtutil epl` → `.evtx` file; Import: `.evtx` files; parse with `evtx` (Rust) | Yes, documented subset | Mandatory Python |
 | YARA | `yara-python` (Windows wheels exist) | Yes | Optional Python extra |
 | SHA-256 / file metadata | `hashlib`, `os.stat` | Yes | Built-in |
 | Linux auth/syslog | Plain-text parsers | Post-MVP | — |
@@ -316,7 +316,7 @@ Exit codes: `0` success, `1` error, `2` invalid input, `3` partial execution.
 
 | Mandatory (pip) | Optional (pip extra) | Optional (external, detected) |
 |---|---|---|
-| typer, pydantic, pyyaml, jinja2, psutil, python-evtx | yara-python (`atad[yara]`) | nmap, sysmon, osquery |
+| typer, pydantic, pyyaml, jinja2, psutil, evtx (Rust parser) | yara-python (`atad[yara]`), python-evtx (`atad[slow-evtx]`, fallback) | nmap, sysmon |
 
 The MVP must run with only the mandatory set; missing optional pieces are
 reported as `unavailable`, never as an error that stops the run.
@@ -333,6 +333,25 @@ reported as `unavailable`, never as an error that stops the run.
 | M4 Logs | EVTX import + live export | Sample EVTX fixtures parse to expected evidence |
 | M5 Host & Net | psutil collection, Nmap XML | Nmap XML fixture parses; local collection runs on Windows |
 | M6 IOC & Correlation | IOC lists, rules R1–R5, timeline | Labelled dataset: precision/recall reported |
-| M7 Reports | JSON + HTML | Report built from demo case; every finding links to evidence |
+| M7 Reports | JSON + HTML report; timeline export as CSV / JSONL for Timeline Explorer, Timesketch and Elastic | Report built from demo case; every finding links to evidence; exports open in Timeline Explorer |
 | M8 Triage & Demo | Profiles, `atad triage`, demo dataset, metrics | Full demo scenario runs end to end |
 | M9 Linux | Linux adapters from §3.1 (ip, dig, journalctl, auth.log, auditd, persistence locations) | Same modules and commands work on Linux; Linux fixtures parse; `atad doctor` shows Linux tools instead of "n/a" |
+| M10 Detection rules | Sigma rule support for log evidence (the standard used by Hayabusa and Chainsaw) | Public Sigma rules load and match labelled sample logs |
+
+---
+
+## 12. Lessons from established tools
+
+How tools used in real SOC / DFIR work are built, and what atad takes from them:
+
+| Practice | Seen in | atad |
+|---|---|---|
+| One executable, no install on the endpoint | Hayabusa, Chainsaw, Velociraptor | `atad.exe` built with PyInstaller (`packaging/build.py`) |
+| Releases with published hashes | Hayabusa (signed releases) | `SHA256SUMS.txt` with every release; code signing not yet |
+| Rules shipped next to the binary, updatable | Chainsaw, Hayabusa | `rules/` folder beside `atad.exe` |
+| Fast EVTX parsing | Chainsaw (Rust EVTX parser) | Same Rust parser through the `evtx` package (~800× faster than python-evtx on the sample) |
+| Works without extra infrastructure (no SIEM/ELK) | Chainsaw | Everything runs locally, offline; SQLite per case |
+| Collection packed with a collection log | Velociraptor offline collector | Case folder with `logs/execution.jsonl`; single-zip case export planned with M7 |
+| Timeline export for analyst tools | Hayabusa (CSV/JSON/JSONL) | Planned in M7 |
+| Sigma detection rules | Hayabusa, Chainsaw | Planned in M10 |
+| Automated tests and builds | All maintained projects | GitHub Actions: tests on Windows + Linux, release build on tag |

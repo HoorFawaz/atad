@@ -36,6 +36,7 @@ SCAN_TIMEOUT_RANGE = 900
 class NetRunResult:
     case: OpenCase
     target: ValidatedTarget | None
+    scope_added: Target | None = None
     outcomes: list[CheckOutcome] = field(default_factory=list)
 
     def outcome(self, check: str) -> CheckOutcome | None:
@@ -94,17 +95,46 @@ def scan_targets(vt: ValidatedTarget, scope: list[Target]) -> list[str]:
 # -------------------------------------------------------------------- runner
 
 
+TOUCHES_TARGET = ("ping", "scan")   # checks that send packets to the target
+
+
+def authorize(case: OpenCase, vt: ValidatedTarget, note: str) -> Target | None:
+    """Add a validated target to the case scope if it is not covered yet.
+
+    Running ``atad net --target X`` is itself the analyst's explicit choice,
+    so the target is recorded in the scope (with a note) instead of asking
+    for a separate ``atad scope add``. Public targets only reach this point
+    when ``--allow-public`` was given.
+    """
+    scope = case.repo.list_targets()
+    if vt.kind in ("ip", "cidr") and _covered(vt.value, scope):
+        return None
+    if vt.kind == "hostname" and vt.value in {t.value for t in scope if t.kind == "hostname"}:
+        return None
+    t = Target(case_id=case.case.id, value=vt.value, kind=vt.kind, is_public=vt.is_public, note=note)
+    case.repo.add_target(t)
+    return t
+
+
 def run_net(case: OpenCase, checks: list[str], *, target: str | None = None,
             excluded: list[str] | None = None, profile: str = "standard",
-            ports: str | None = None, allow_public: bool = False) -> NetRunResult:
+            ports: str | None = None, allow_public: bool = False,
+            max_hosts: int | None = None, auto_scope: bool = True) -> NetRunResult:
     excluded = excluded or []
-    vt = validate_target(target, allow_public=allow_public) if target else None
-    result = NetRunResult(case=case, target=vt)
-    scope = case.repo.list_targets()
-    needs_target = [c for c in checks if c != "interfaces"]
+    limit = {"max_addresses": max_hosts} if max_hosts else {}
+    touches = [c for c in checks if c in TOUCHES_TARGET]
+    vt = None
+    added: Target | None = None
     addresses: list[str] = []
-    if vt and needs_target:
-        addresses = scan_targets(vt, scope)  # raises before anything runs
+    if target:
+        # DNS only asks the resolver and never contacts the target, so it is
+        # allowed for any address (e.g. a suspicious public IP).
+        vt = validate_target(target, allow_public=allow_public or not touches, **limit)
+        if touches:
+            if auto_scope:
+                added = authorize(case, vt, "added automatically by atad net")
+            addresses = scan_targets(vt, case.repo.list_targets())  # raises before anything runs
+    result = NetRunResult(case=case, target=vt, scope_added=added)
 
     for check in CHECKS:
         mode = CollectionMode.LOCAL if check == "interfaces" else CollectionMode.NETWORK

@@ -2,7 +2,7 @@
 
 Two layers, so parsing can be tested without real .evtx files:
 
-* :func:`iter_evtx_xml` — reads an .evtx file with python-evtx and yields
+* :func:`iter_evtx_xml` — reads an .evtx file (Rust `evtx`, or python-evtx) and yields
   the XML of each record (with a limit).
 * :func:`parse_event_xml` — turns one record's XML into a dict.
 """
@@ -47,8 +47,10 @@ def _find(parent: ET.Element, name: str) -> ET.Element | None:
     return el if el is not None else parent.find(name)
 
 
-def parse_event_xml(xml: str) -> dict[str, Any] | None:
+def parse_event_xml(xml: str | bytes) -> dict[str, Any] | None:
     """Return a dict for one event, or None when the XML is not an event."""
+    if isinstance(xml, str) and xml.lstrip().startswith("<?xml"):
+        xml = xml.encode("utf-8")  # ElementTree refuses str with an encoding declaration
     try:
         root = ET.fromstring(xml)
     except ET.ParseError:
@@ -98,11 +100,58 @@ class ReadStats:
     record_errors: int = 0
     truncated: bool = False
     errors: list[str] = field(default_factory=list)
+    engine: str | None = None          # which parser read the file
+
+
+def available_engine() -> str | None:
+    """'evtx' (Rust, fast — the parser Chainsaw uses) or 'python-evtx' (pure Python)."""
+    import importlib.util
+
+    if importlib.util.find_spec("evtx") is not None:
+        return "evtx"
+    if importlib.util.find_spec("Evtx") is not None:
+        return "python-evtx"
+    return None
+
+
+def _note_error(stats: ReadStats, exc: Exception) -> None:
+    stats.record_errors += 1
+    if len(stats.errors) < 20:
+        stats.errors.append(f"record {stats.records_read}: {exc}")
 
 
 def iter_evtx_xml(path: Path, stats: ReadStats, max_events: int = DEFAULT_MAX_EVENTS) -> Iterator[str]:
-    """Yield the XML of each record. Broken records are counted, not fatal."""
-    import Evtx.Evtx as evtx  # python-evtx
+    """Yield the XML of each record. Broken records are counted, not fatal.
+
+    Uses the Rust ``evtx`` parser when installed (hundreds of times faster),
+    otherwise python-evtx.
+    """
+    engine = available_engine()
+    stats.engine = engine
+    if engine == "evtx":
+        from evtx import PyEvtxParser
+
+        records = PyEvtxParser(str(path)).records()
+        while True:
+            if stats.records_read >= max_events:
+                stats.truncated = True
+                return
+            try:
+                rec = next(records)
+            except StopIteration:
+                return
+            except Exception as exc:  # damaged record: keep going
+                stats.records_read += 1
+                _note_error(stats, exc)
+                continue
+            stats.records_read += 1
+            yield rec["data"]
+        return
+
+    if engine is None:
+        raise RuntimeError("no EVTX parser installed (pip install evtx)")
+
+    import Evtx.Evtx as evtx  # python-evtx fallback
 
     with evtx.Evtx(str(path)) as log:
         for record in log.records():
@@ -113,9 +162,7 @@ def iter_evtx_xml(path: Path, stats: ReadStats, max_events: int = DEFAULT_MAX_EV
             try:
                 yield record.xml()
             except Exception as exc:  # corrupted record: keep going
-                stats.record_errors += 1
-                if len(stats.errors) < 20:
-                    stats.errors.append(f"record {stats.records_read}: {exc}")
+                _note_error(stats, exc)
 
 
 def is_evtx(path: Path) -> bool:

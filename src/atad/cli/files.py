@@ -26,6 +26,8 @@ HostOpt = typer.Option(
     help="Files were copied from this machine (import mode). Omit when atad runs on the machine itself.",
 )
 RulesOpt = typer.Option(None, "--rules", help="YARA rule file or folder (default: $ATAD_RULES or ./rules).")
+MaxFilesOpt = typer.Option(10_000, "--max-files", min=1, max=10_000_000,
+                           help="Stop after this many files (default 10000).")
 
 _STATUS_COLOR = {
     ExecutionStatus.SUCCESS: typer.colors.GREEN,
@@ -46,6 +48,7 @@ def files_all(
     case: Optional[str] = CaseOpt,
     source_host: Optional[str] = HostOpt,
     rules: Optional[Path] = RulesOpt,
+    max_files: int = MaxFilesOpt,
 ) -> None:
     """Run all file checks (or a chosen set with --only / --skip)."""
     if ctx.invoked_subcommand is not None:
@@ -54,7 +57,7 @@ def files_all(
         typer.echo(ctx.get_help())
         raise typer.Exit(code=2)
     selection = select_checks(CHECKS, only, skip)
-    _execute(path, selection.selected, selection.excluded, case, source_host, rules)
+    _execute(path, selection.selected, selection.excluded, case, source_host, rules, max_files)
 
 
 def _single(check: str):
@@ -64,8 +67,9 @@ def _single(check: str):
         case: Optional[str] = CaseOpt,
         source_host: Optional[str] = HostOpt,
         rules: Optional[Path] = RulesOpt,
+        max_files: int = MaxFilesOpt,
     ) -> None:
-        _execute(path, [check], [], case, source_host, rules)
+        _execute(path, [check], [], case, source_host, rules, max_files)
 
     return command
 
@@ -75,11 +79,12 @@ app.command("info", help="Metadata, real file type and extension mismatch.")(_si
 app.command("scan", help="Scan with YARA rules.")(_single("scan"))
 
 
-def _execute(path, checks, excluded, case_id, source_host, rules) -> None:
+def _execute(path, checks, excluded, case_id, source_host, rules, max_files) -> None:
     target = validate_evidence_path(path)
     oc, _ = get_or_create_case(case_id, f"files: {target.name or target}")
     result = run_files(
-        oc, target, checks, excluded=excluded, source_host=source_host, rules=rules
+        oc, target, checks, excluded=excluded, source_host=source_host, rules=rules,
+        max_files=max_files,
     )
     _print_summary(result)
     failed = [o for o in result.outcomes
@@ -106,7 +111,7 @@ def _print_summary(r: FilesRunResult) -> None:
         if ex.status is ExecutionStatus.SUCCESS and o.capture is not None:
             extra = f"{o.capture['files_seen']} file(s), {len(o.evidence)} evidence"
             if o.capture.get("truncated"):
-                extra += ", STOPPED AT FILE LIMIT"
+                extra += ", STOPPED AT FILE LIMIT (raise it with --max-files)"
             typer.echo(extra)
         else:
             typer.echo("" if ex.error == "excluded_by_user" else (ex.error or ""))

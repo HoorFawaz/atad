@@ -129,7 +129,7 @@ def event_to_evidence(event: dict[str, Any], ctx: ParseContext) -> Evidence | No
     base = dict(
         case_id=ctx.case_id,
         source_module=SourceModule.LOG,
-        source_tool="python-evtx",
+        source_tool=ctx.tool or "evtx",
         tool_version=ctx.tool_version,
         collection_mode=ctx.collection_mode,
         host=ctx.host,

@@ -52,6 +52,7 @@ class ParseContext:
     raw_sha256: str | None = None
     tool_version: str | None = None
     simulated: bool = False
+    tool: str | None = None            # overrides the adapter's default tool name
 
 
 class ToolAdapter(ABC):
