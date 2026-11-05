@@ -1,4 +1,4 @@
-# atad — Architecture & Design (v0.1)
+# ATAD — Architecture & Design (v0.1)
 
 > ATAD (عَتاد) — Advanced Toolkit for Attack & Defense.
 

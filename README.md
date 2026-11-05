@@ -1,7 +1,7 @@
-# atad (عَتاد)
+# ATAD (عَتاد)
 
 **Advanced Toolkit for Attack & Defense** — one CLI that runs established
-SOC/DFIR tools, keeps their original outputs as evidence, normalizes the
+security tools, keeps their original outputs as evidence, normalizes the
 results, correlates them across sources and produces an investigation report.
 
 ```
@@ -9,6 +9,7 @@ Collect → Normalize → Correlate → Investigate → Report
 ```
 
 > Status: early development (milestone M5 — host & network, single-file build).
+> Current modules are defensive (SOC / DFIR). Offensive (red team) modules are planned.
 > MVP platform: Windows. Read-only by design: atad never deletes, quarantines,
 > blocks or executes anything it investigates.
 
