@@ -102,3 +102,22 @@ environment variable).
 ```bash
 pytest
 ```
+
+## License
+
+Copyright (C) 2026 Hoor Fawaz
+
+ATAD is **source-available** under the ATAD Source-Available License 1.0
+([English](LICENSE) · [العربية — النص الرسمي](LICENSE.ar)). It is not an
+OSI-approved open source license.
+
+| | |
+|---|---|
+| Personal and internal use, including by companies | Free |
+| Using ATAD as a tool in paid services (SOC, incident response, consulting) | Free |
+| Free redistribution, with source, notices and a new name for modified versions | Free |
+| Selling ATAD, bundling it in a paid or closed product, or offering it as a paid service | Written permission required |
+
+Reports and evidence produced with ATAD belong to their user.
+For commercial licensing: hoorfawaz.it@gmail.com
+

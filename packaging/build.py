@@ -77,7 +77,7 @@ def main() -> int:
     package = DIST / f"atad-{ver}-{os_name}-{arch}.zip"
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(exe, f"atad/{exe_name}")
-        for name in ("README.md", "CHANGELOG.md", "LICENSE"):
+        for name in ("README.md", "CHANGELOG.md", "LICENSE", "LICENSE.ar"):
             if (ROOT / name).exists():
                 z.write(ROOT / name, f"atad/{name}")
         for rule in sorted((ROOT / "rules").rglob("*")):

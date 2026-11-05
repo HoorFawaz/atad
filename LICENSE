@@ -1,0 +1,218 @@
+ATAD Source-Available License
+Version 1.0
+
+SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+Copyright (C) 2026 Hoor Fawaz. All rights not expressly granted
+in this license are reserved.
+
+ATAD (عَتاد) is source-available software. This license is NOT an
+open source license approved by the Open Source Initiative, because
+it requires permission for commercial distribution and paid services.
+The Arabic text of this license is the official text (Section 17).
+It is in the file LICENSE.ar.
+
+1. DEFINITIONS
+
+"Licensor" means Hoor Fawaz, the author and copyright owner of ATAD.
+
+"Software" means ATAD (عَتاد) as published by the Licensor under
+this license, in source or executable form, including its
+documentation and the detection rules written by the Licensor, but
+not Third-Party Components.
+
+"Third-Party Components" means any code, library, rule or file in the
+Software that carries its own license notice, and any external
+program the Software runs, such as Nmap. They are governed only by
+their own licenses.
+
+"You" means the person or organization using the Software under this
+license. For an organization, it includes its employees and the
+contractors working on its behalf.
+
+"Affiliate" means an organization that controls You, is controlled by
+You, or is under common control with You. Control means owning more
+than 50% of the voting rights.
+
+"Modified Version" means any work that changes the Software or is
+derived from it. A separate program that only runs the Software, or
+only reads its output files, is not a Modified Version.
+
+"Substantial Part" means any whole module of the Software, or any
+part that by itself performs a main function of the Software, such as
+collection, evidence correlation or reporting.
+
+"Distribute" means to give, or make available, a copy of the
+Software, a Modified Version or a Substantial Part to anyone other
+than You and Your Affiliates, in any form: source code, executable,
+installer, container, virtual machine, image or device.
+
+"Compensation" means money or anything of value paid for a copy, for
+access to it, or for any support or subscription without which the
+copy cannot be obtained or used. Voluntary donations are not
+Compensation.
+
+"Internal Use" means running, studying, copying and modifying the
+Software by You and Your Affiliates for Your own purposes, without
+Distributing it and without making it available to others as a
+service.
+
+"Paid Service" means making the functions of the Software available
+to others for Compensation, as a hosted, managed or cloud service or
+through a cloud marketplace, in which those others run the Software,
+access it, or receive its results directly as the main thing offered.
+
+2. PERMISSION TO USE
+
+Subject to the conditions of this license, the Licensor grants You a
+free, non-exclusive, non-transferable license, in all countries of
+the world including the Kingdom of Saudi Arabia, for the full
+duration of copyright protection in the Software, to:
+
+(a) use the Software for any lawful purpose, including Internal Use
+    by companies, government bodies, educational institutions and
+    research teams, whether they operate for profit or not;
+(b) study the source code and modify the Software;
+(c) Distribute the Software and Modified Versions without
+    Compensation, under Section 4.
+
+3. PROFESSIONAL SERVICES
+
+You may use the Software as a tool while You provide services to
+others for a fee, such as incident response, digital forensic
+investigation, security monitoring, assessments, consulting,
+technical support or training, as long as You do not Distribute the
+Software for Compensation and do not offer it as a Paid Service. You
+may deliver to Your clients the reports and results You produce with
+the Software.
+
+4. FREE REDISTRIBUTION
+
+You may Distribute the Software or a Modified Version only if all of
+the following are met:
+
+(a) no Compensation is charged for it;
+(b) You include the complete source code, or a link from which it can
+    be downloaded free of charge for as long as You Distribute the
+    copy;
+(c) recipients receive it under this same license with no added
+    restrictions, and You license Your own changes to them on the
+    same terms;
+(d) You keep all copyright, license and attribution notices, and You
+    show this notice where users will see it:
+    "Based on ATAD (عَتاد) by Hoor Fawaz - https://github.com/HoorFawaz";
+(e) for a Modified Version, You include a file named MODIFICATIONS
+    stating Your name, the date of each modification and a summary
+    of what changed; You mark the changed files; and You give it a
+    name that is not "ATAD" or "عَتاد" and is not confusingly
+    similar to them;
+(f) You do not present any Modified Version as an official ATAD
+    release, and You do not claim to be the author or owner of the
+    Software.
+
+An unmodified copy of an official release may keep the name ATAD.
+
+5. USES THAT REQUIRE WRITTEN PERMISSION
+
+This license does not give permission to do any of the following.
+Each requires the Licensor's prior written permission, usually
+through a separate commercial license:
+
+(a) Distribute the Software, a Modified Version or a Substantial Part
+    for Compensation;
+(b) include the Software, a Modified Version or a Substantial Part
+    in, or Distribute it with, a product, device or offering that is
+    sold, licensed for a fee, or whose source code is not available
+    under this license, including OEM, embedding and preinstallation;
+(c) offer the Software or a Modified Version as a Paid Service;
+(d) Distribute it under any license other than this license.
+
+6. INTEGRATIONS AND OUTPUTS
+
+(a) A separate program that runs a copy of the Software installed by
+    its user, or reads the Software's output files (such as JSON, CSV
+    or HTML reports), is not covered by this license, even if that
+    program is sold. Placing the Software inside the installer or
+    package of such a program is Distribution.
+(b) Plugins, rules and extensions that You write and that contain no
+    part of the Software are Your own work.
+(c) Case data, evidence, reports and other outputs produced by
+    running the Software belong to their user, not to the Licensor,
+    and are not covered by this license.
+
+7. FREE USE BY OTHERS OVER A NETWORK
+
+If You make the Software available to others over a network without
+Compensation, You must show them, where technically possible, a
+notice that the service uses ATAD by Hoor Fawaz, with a link to the
+official project.
+
+8. CONTRIBUTIONS
+
+The Licensor accepts contributions to the official ATAD project only
+under a separate written contributor agreement. Contributors keep
+ownership of their contributions.
+
+9. NAMES AND TRADEMARKS
+
+This license gives no right to use the names "ATAD" or "عَتاد" or
+any ATAD logo, except to say truthfully that a work is based on ATAD,
+or to name an unmodified official release. The ATAD trademark policy,
+if published, also applies.
+
+10. THIRD-PARTY COMPONENTS
+
+Third-Party Components are not licensed under this license. The
+Software does not include Nmap or Sysmon. When it runs them, it runs
+the copies installed by the user, under their own licenses.
+
+11. LAWFUL USE
+
+You are responsible for using the Software lawfully, including having
+authorization for every system, network and file You examine. The
+Licensor is not responsible for any use of the Software.
+
+12. PATENTS
+
+The Licensor grants You a license under any patent claims the
+Licensor can license that the Software necessarily infringes, for the
+uses this license allows. If You bring a legal claim that the
+Software infringes a patent, Your licenses under this license end
+immediately.
+
+13. TERMINATION
+
+If You break this license, Your licenses end. If You stop the
+violation within 30 days after receiving written notice from the
+Licensor, and it is the first such notice You have received, Your
+licenses are restored. People who received copies from You in
+compliance with this license keep their licenses.
+
+14. RESERVED RIGHTS
+
+This license does not transfer ownership of the Software. The
+Licensor keeps all rights not expressly granted, including the right
+to publish the Software, or other versions of it, under other terms,
+and to grant commercial licenses. Licenses already granted under this
+license for a released version are not withdrawn. The author's moral
+rights remain in all cases.
+
+15. NO WARRANTY AND NO LIABILITY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. TO
+THE EXTENT ALLOWED BY LAW, THE LICENSOR IS NOT LIABLE FOR ANY CLAIM,
+DAMAGE OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+16. GOVERNING LAW
+
+This license is governed by the laws of the Kingdom of Saudi Arabia.
+The competent authorities of the Kingdom have jurisdiction over any
+dispute relating to it.
+
+17. OFFICIAL TEXT
+
+This license is published in Arabic and English. The Arabic text is
+the official text. If the two texts differ, the Arabic text prevails.
+
+18. REQUESTING PERMISSION
+
+To request any permission under Section 5: hoorfawaz.it@gmail.com

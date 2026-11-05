@@ -12,6 +12,7 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - `atad host` and `atad net`: processes, connections, users, startup; ping, Nmap, DNS (M5).
 - Single-file executable build, release package with rules and SHA256SUMS, GitHub Actions.
 - `--max-files`, `--max-events`, `--max-hosts` options.
+- License: ATAD Source-Available License 1.0 (Arabic text official).
 
 ### Changed
 - EVTX parsing uses the Rust `evtx` parser (python-evtx kept as optional fallback).
