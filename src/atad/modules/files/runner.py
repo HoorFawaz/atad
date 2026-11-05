@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Runs the FILES module checks for a case and stores their evidence."""
 
 from __future__ import annotations

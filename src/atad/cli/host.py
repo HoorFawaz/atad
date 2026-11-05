@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """`atad host ...` — collect from the machine atad runs on."""
 
 from __future__ import annotations

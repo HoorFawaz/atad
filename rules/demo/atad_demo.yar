@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Hoor Fawaz
+// SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 /*
   atad demo rules — SIMULATED.
   These rules match harmless marker strings placed in the demo dataset.

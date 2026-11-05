@@ -121,3 +121,6 @@ OSI-approved open source license.
 Reports and evidence produced with ATAD belong to their user.
 For commercial licensing: hoorfawaz.it@gmail.com
 
+Third-party components and their licenses are listed in [NOTICE](NOTICE).
+Use of the ATAD name and logo is covered by [TRADEMARKS.md](TRADEMARKS.md).
+

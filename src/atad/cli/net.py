@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """`atad net ...` — network investigation of authorized targets."""
 
 from __future__ import annotations

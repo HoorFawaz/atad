@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Reading Windows .evtx files and turning each record into a plain dict.
 
 Two layers, so parsing can be tested without real .evtx files:

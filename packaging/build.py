@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Build a single-file atad executable and a release package.
 
     python packaging/build.py
@@ -43,6 +46,48 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+# Python packages bundled inside the executable (see NOTICE).
+BUNDLED = (
+    "psutil", "evtx", "python-evtx", "yara-python", "Jinja2", "MarkupSafe", "click",
+    "typer", "rich", "pydantic", "pydantic_core", "annotated-types", "PyYAML",
+    "typing_extensions",
+)
+_LICENSE_NAMES = ("LICENSE", "LICENCE", "COPYING", "NOTICE", "AUTHORS")
+
+
+def third_party_license_files() -> dict[str, list[tuple[str, bytes]]]:
+    """License texts of bundled packages, read from their installed metadata."""
+    from importlib import metadata
+
+    out: dict[str, list[tuple[str, bytes]]] = {}
+    for dist in BUNDLED:
+        try:
+            d = metadata.distribution(dist)
+        except metadata.PackageNotFoundError:
+            continue  # optional package not installed, so not bundled
+        found = []
+        for f in d.files or []:
+            name = f.name.upper()
+            if any(name.startswith(k) for k in _LICENSE_NAMES):
+                try:
+                    found.append((f.name, f.locate().read_bytes()))
+                except OSError:
+                    pass
+        # Extra texts kept in the repo: for packages that ship no license file
+        # (evtx) or bundle a library under another license (YARA in yara-python).
+        extra = ROOT / "packaging" / "third_party_licenses" / d.metadata["Name"]
+        if extra.is_dir():
+            found += [(f.name, f.read_bytes()) for f in sorted(extra.iterdir()) if f.is_file()]
+        out[d.metadata["Name"]] = found
+    # Python's own license
+    py_license = Path(sys.base_prefix) / "LICENSE.txt"
+    if not py_license.exists():
+        import sysconfig
+        py_license = Path(sysconfig.get_paths()["stdlib"]) / "LICENSE.txt"
+    out["Python"] = [("LICENSE.txt", py_license.read_bytes())] if py_license.exists() else []
+    return out
+
+
 def main() -> int:
     ver = version()
     os_name = {"win32": "windows", "linux": "linux", "darwin": "macos"}.get(sys.platform, sys.platform)
@@ -77,12 +122,21 @@ def main() -> int:
     package = DIST / f"atad-{ver}-{os_name}-{arch}.zip"
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(exe, f"atad/{exe_name}")
-        for name in ("README.md", "CHANGELOG.md", "LICENSE", "LICENSE.ar"):
+        for name in ("README.md", "CHANGELOG.md", "LICENSE", "LICENSE.ar", "NOTICE", "TRADEMARKS.md"):
             if (ROOT / name).exists():
                 z.write(ROOT / name, f"atad/{name}")
         for rule in sorted((ROOT / "rules").rglob("*")):
             if rule.is_file():
                 z.write(rule, f"atad/{rule.relative_to(ROOT).as_posix()}")
+        missing = []
+        for dist, files in third_party_license_files().items():
+            if not files:
+                missing.append(dist)
+            for src_name, data in files:
+                z.writestr(f"atad/THIRD_PARTY_LICENSES/{dist}/{src_name}", data)
+        if missing:
+            print("WARNING: no license file found for: " + ", ".join(missing)
+                  + " — add their license texts by hand before publishing")
 
     sums = DIST / "SHA256SUMS.txt"
     sums.write_text(

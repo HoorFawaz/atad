@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Runs the NET module checks.
 
 Every check that touches another machine (ping, scan, dns) is limited to the

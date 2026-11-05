@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """SQLite access for one case database.
 
 All SQL lives here. Other modules work with the Pydantic models from

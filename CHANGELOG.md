@@ -13,6 +13,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - Single-file executable build, release package with rules and SHA256SUMS, GitHub Actions.
 - `--max-files`, `--max-events`, `--max-hosts` options.
 - License: ATAD Source-Available License 1.0 (Arabic text official).
+- NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
+  and a copyright / SPDX line in every source file.
 
 ### Changed
 - EVTX parsing uses the Rust `evtx` parser (python-evtx kept as optional fallback).

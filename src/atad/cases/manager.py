@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Case lifecycle: create, list and open investigation cases.
 
 Each case is a folder under the atad home directory::

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Runs the HOST module checks on the machine atad is running on."""
 
 from __future__ import annotations

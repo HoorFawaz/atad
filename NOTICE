@@ -1,0 +1,48 @@
+ATAD (عَتاد) — Advanced Toolkit for Attack & Defense
+Copyright (C) 2026 Hoor Fawaz
+https://github.com/HoorFawaz
+
+Licensed under the ATAD Source-Available License 1.0
+(LICENSE, and the official Arabic text in LICENSE.ar).
+
+-----------------------------------------------------------------------
+Third-party components
+-----------------------------------------------------------------------
+
+The ATAD executable (atad.exe) includes the following third-party
+components. They are NOT licensed under the ATAD license; each remains
+under its own license. Their full license texts are shipped in the
+folder THIRD_PARTY_LICENSES/ of every release package.
+
+Component           License
+------------------  ---------------------------------------------------
+Python              Python Software Foundation License (PSF-2.0)
+psutil              BSD-3-Clause
+evtx                MIT or Apache-2.0
+python-evtx         Apache-2.0 (optional)
+yara-python         Apache-2.0 (optional; includes YARA, BSD-3-Clause)
+Jinja2              BSD-3-Clause
+MarkupSafe          BSD-3-Clause
+click               BSD-3-Clause
+typer               MIT
+rich                MIT
+pydantic            MIT
+pydantic-core       MIT
+annotated-types     MIT
+PyYAML              MIT
+typing_extensions   PSF-2.0
+
+The executable is built with PyInstaller (GPLv2 with the PyInstaller
+bootloader exception, which permits distributing the built executable
+under any license).
+
+-----------------------------------------------------------------------
+External programs
+-----------------------------------------------------------------------
+
+ATAD does not include or distribute the following programs. When
+installed by the user, ATAD runs the user's own copy:
+
+Nmap      Nmap Public Source License (https://nmap.org/npsl/)
+Sysmon    Microsoft Sysinternals license
+ping, wevtutil   part of Microsoft Windows

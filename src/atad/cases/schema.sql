@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 Hoor Fawaz
+-- SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 -- atad case database schema (one SQLite file per case).
 -- All timestamps are ISO-8601 strings in UTC (e.g. 2026-11-07T00:12:00+00:00).
 

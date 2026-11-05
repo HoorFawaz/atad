@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Endpoint collection with psutil (and the Windows registry for startup items).
 
 Runs on the machine being investigated (local mode). Read-only: nothing is

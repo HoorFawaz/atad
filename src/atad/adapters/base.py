@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Tool adapter interface.
 
 Every tool atad knows about is described by an adapter. In this milestone

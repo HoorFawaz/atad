@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Detection specs for every tool atad knows about (MVP: Windows first)."""
 
 from __future__ import annotations

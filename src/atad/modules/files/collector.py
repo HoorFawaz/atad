@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """File evidence collection: hashing, metadata and YARA scanning.
 
 Everything here is read-only: files are opened with ``rb`` only, symbolic

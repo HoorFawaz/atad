@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Input validation for everything the analyst types.
 
 Nothing reaches a subprocess or the file system without passing through

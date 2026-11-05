@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Hand-written event XML in the exact shape python-evtx produces.
 
 All values are SIMULATED (lab host LAB-WS-01, lab IPs, demo users).

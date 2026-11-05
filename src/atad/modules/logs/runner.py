@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
 """Runs the LOG module: live export on Windows, or import of copied .evtx files."""
 
 from __future__ import annotations
