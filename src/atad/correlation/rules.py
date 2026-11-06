@@ -447,6 +447,28 @@ def _pivot_ok(view: CaseView, o: Observable) -> bool:
     return True
 
 
+# How much one shared indicator is worth (R4). Two things decide it:
+# 1. Independence — confirmation by a second, independent source is the
+#    strongest level of the Admiralty / NATO credibility scale (FM 2-22.3).
+# 2. Indicator type — an exact hash means the same file; an IP address can be
+#    shared (NAT) or reassigned (DHCP) (NIST SP 800-86 §6.4.4), and domains
+#    and paths can be shared too (e.g. C:\Windows\System32\svchost.exe).
+# A repeat of the same kind of event from the same source is not a link
+# (as in Splunk RBA, which counts distinct sources, not repeats).
+HASH_TYPES = ("sha256", "sha1", "md5")
+PIVOT_CONFIDENCE = {
+    # (exact hash?, independent source?) -> confidence
+    (True, True): Confidence.HIGH,
+    (True, False): Confidence.MEDIUM,
+    (False, True): Confidence.MEDIUM,
+    (False, False): Confidence.LOW,
+}
+_WHY = {
+    True: "an exact hash match means the same file",
+    False: "an address, domain or path can be shared by different machines or programs",
+}
+
+
 def _describe(view: CaseView, ids: list[str]) -> str:
     kinds = Counter(f"{view.by_id[x].kind.value.replace('_', ' ')} from "
                     f"{view.by_id[x].source_module.value}" for x in ids)
@@ -467,6 +489,8 @@ def rule_pivot(view: CaseView, stored: list[tuple[Finding, set[Observable]]]) ->
                 in_finding |= set(other.evidence_ids)
         lines, linked = [], []
         any_independent = False
+        best = Confidence.LOW
+        notes: set[bool] = set()
         for k in sorted(keys, key=lambda x: (x.type.value, x.value)):
             if not _pivot_ok(view, k):
                 continue
@@ -490,24 +514,28 @@ def rule_pivot(view: CaseView, stored: list[tuple[Finding, set[Observable]]]) ->
                 continue  # nothing new, or the same link was reported from another finding
             reported.add((k, frozenset(new)))
             any_independent = any_independent or bool(indep)
-            for group, label in ((indep, "independent source"),
-                                 (other_kind, "same source, different event type")):
+            exact = k.type.value in HASH_TYPES
+            notes.add(exact)
+            for group, label, independent in ((indep, "independent source", True),
+                                              (other_kind, "same source, different event type",
+                                               False)):
                 if group:
-                    lines.append(f"{k.type.value} {k.value} also appears in {_describe(view, group)}"
-                                 f" — {label}")
+                    conf = PIVOT_CONFIDENCE[(exact, independent)]
+                    best = max(best, conf, key=_CONF_ORDER.index)
+                    lines.append(f"{k.type.value} {short(k.value, 70)} also appears in "
+                                 f"{_describe(view, group)} — {label}, confidence {conf.value}")
             linked += origin + new
         if not linked:
             continue
-        rationale = (f"Starting from {f.id} ({f.title}): " + "; ".join(lines) +
-                     ". The same indicator links these records; it does not prove they are "
-                     "the same activity." +
-                     ("" if any_independent else " All records come from one source, so the "
-                      "link is weaker than one confirmed by a second tool."))
+        rationale = (f"Starting from {f.id} ({f.title}): " + "; ".join(lines) + ". "
+                     + "; ".join(_WHY[n] for n in sorted(notes, reverse=True)).capitalize()
+                     + ". A link confirmed by a second, independent tool is stronger than one "
+                     "from a single source. The shared indicator does not by itself prove "
+                     "this is the same activity.")
         out.append(_finding(view, "R4",
                             f"Indicator from {f.id} found in "
                             f"{'other sources' if any_independent else 'other events'}",
-                            FindingCategory.CORRELATED, Severity.MEDIUM,
-                            Confidence.MEDIUM if any_independent else Confidence.LOW,
+                            FindingCategory.CORRELATED, Severity.MEDIUM, best,
                             rationale, linked))
     return out
 

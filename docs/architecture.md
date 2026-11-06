@@ -225,8 +225,31 @@ Correlation rules (link evidence across events and sources):
 | R1 Brute force | ≥ 5 × 4625 from the same source IP on the same host within 10 min. Failures closer than 10 min apart form one burst, so a long attack is one finding. A 4624 from that IP during the burst or within 10 min after it → *then success* | with success: high / high; without: medium / high | suspicious |
 | R2 Process → IOC connection | Network connection (psutil / Sysmon 3) to an IOC IP/domain/range, linked to its process by Sysmon ProcessGuid, else by PID + program path | high / indicator confidence | suspicious |
 | R3 Flagged file executed | A process with the SHA-256 of a YARA-matched file (high confidence), or the same path when no hash exists (medium) | high | suspicious |
-| R4 Indicator in other sources or events | A key indicator of a finding (IP, domain, hash, path) also appears in (a) evidence from a different module — *independent source*, or (b) the same module but a different kind of event — *same source, different event type* (e.g. the brute-force IP later contacted by a process, both from event logs). Repeats of the same kind of event from the same module are not links. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium; confidence medium with an independent source, low otherwise | correlated |
+| R4 Indicator in other sources or events | A key indicator of a finding (IP, domain, hash, path) also appears in (a) evidence from a different module — *independent source*, or (b) the same module but a different kind of event — *same source, different event type* (e.g. the brute-force IP later contacted by a process, both from event logs). Repeats of the same kind of event from the same module are not links. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium; confidence from the table below | correlated |
 | R5 Activity cluster | ≥ 3 suspicious findings on the same host within 15 min (by event time) | highest of the group / medium | hypothesis |
+
+**R4 confidence.** Two things decide how much one shared indicator is worth:
+independence of the source and the type of indicator.
+
+| Indicator | Independent source | Same source, different event type | Same source, same event type |
+|---|---|---|---|
+| Hash (SHA-256 / SHA-1 / MD5) | high | medium | not a link |
+| IP address, domain, file path | medium | low | not a link |
+
+Basis:
+- Only information *"confirmed by other independent sources"* reaches the top
+  credibility level of the Admiralty / NATO scale (US Army FM 2-22.3, also used by
+  STIX 2.1 and MISP).
+- Logs can be altered (NIST SP 800-86 §2.5), so links that all come from one
+  source share the same weakness.
+- An exact hash identifies one file. An IP address may be reassigned (DHCP) or
+  shared by many hosts (NAT, proxies) (NIST SP 800-86 §6.4.4); domains and
+  common paths are shared too.
+- Repeats from one detection do not add weight; distinct sources do
+  (Splunk risk-based alerting counts distinct sources).
+- The NCA *Cybersecurity Event Logs and Monitoring Management Standard* requires
+  correlation, documented alert thresholds, noise tuning and log integrity, but
+  publishes no confidence scale; the table above applies the sources listed here.
 
 Every finding stores its `rationale` text, e.g.
 *"5 failed logons from 10.66.0.9 between 10:02:00 and 10:02:04 UTC (accounts: LAB\\bob ×5),

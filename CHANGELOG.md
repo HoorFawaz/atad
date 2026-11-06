@@ -22,6 +22,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   is reported once instead of in pieces.
 - R4 also links a finding's indicator to a different kind of event from the same
   source (lower confidence), and says which kind of link each one is.
+- R4 confidence also depends on the indicator: a shared hash counts more than a
+  shared IP address, domain or path (basis documented in docs/architecture.md §7).
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

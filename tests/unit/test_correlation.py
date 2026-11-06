@@ -253,6 +253,42 @@ def test_r4_same_source_other_event_type(case):
     assert stored[-1].id in p4.evidence_ids and stored[-2].id not in p4.evidence_ids
 
 
+def _disguised(sha):
+    return ev("file", "files", data={"name": "a.pdf.exe", "path": "C:\\a.pdf.exe",
+                                     "suspicious_reasons": ["double extension"]},
+              obs=[("path", "C:\\a.pdf.exe"), ("sha256", sha)])
+
+
+@pytest.mark.parametrize("other,expected", [
+    # same hash seen running by psutil (independent tool) -> high
+    (lambda sha: ev("process", "host", data={"exe": "C:\\x.exe"}, obs=[("sha256", sha)]),
+     Confidence.HIGH),
+    # same hash, same tool (files), different event type -> medium
+    (lambda sha: ev("yara_match", "files", data={"path": "C:\\x.exe", "sha256": sha,
+                                                  "rule": "R"}, obs=[("sha256", sha)]),
+     Confidence.MEDIUM),
+])
+def test_r4_hash_confidence(case, other, expected):
+    sha = "3" * 64
+    cid = case.case.id
+    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid})
+                                 for e in (_disguised(sha), other(sha))])
+    r4 = [f for f in correlate(case.repo).findings if f.rule_id == "R4"
+          and "S2" not in f.title]
+    from_s2 = [f for f in r4 if "a.pdf.exe" in f.rationale]
+    assert from_s2 and from_s2[0].confidence is expected
+    assert "exact hash match means the same file" in from_s2[0].rationale
+
+
+def test_r4_ip_independent_is_medium(scenario):
+    r = correlate(scenario.repo)
+    by_id = {f.id: f for f in r.findings}
+    p4 = next(f for f in r.findings if f.rule_id == "R4"
+              and by_id[f.title.split()[2]].rule_id == "R1")
+    assert p4.confidence is Confidence.MEDIUM and "independent source" in p4.rationale
+    assert "can be shared" in p4.rationale
+
+
 def test_no_iocs_no_ioc_findings(case):
     assert correlate(case.repo).findings == []
 
