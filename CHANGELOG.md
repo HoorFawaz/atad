@@ -18,6 +18,10 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - `atad correlate`, `atad findings`, `atad timeline`: rules IOC, YARA, S1, S2, R1–R5
   with a plain-language reason for every finding, configurable thresholds, and a
   rebuilt UTC timeline (M6).
+- R1 also reports password guessing that did not succeed (medium), and a long attack
+  is reported once instead of in pieces.
+- R4 also links a finding's indicator to a different kind of event from the same
+  source (lower confidence), and says which kind of link each one is.
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

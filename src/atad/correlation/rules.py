@@ -13,10 +13,10 @@ rationale that says, in plain words, why that evidence was linked.
 | YARA | A file that matched a YARA rule                        | suspicious  |
 | S1   | PowerShell started with an encoded command             | suspicious  |
 | S2   | A file whose real type does not match its name         | suspicious  |
-| R1   | Many failed logons, then a success, from one source    | suspicious  |
+| R1   | Many failed logons from one source (with or without a success) | suspicious |
 | R2   | A process that connected to a known indicator          | suspicious  |
 | R3   | A file that matched YARA was also run as a process     | suspicious  |
-| R4   | A key indicator of a finding also seen in another source | correlated |
+| R4   | A finding's key indicator seen in another source or event type | correlated |
 | R5   | Several suspicious findings close in time on one host  | hypothesis  |
 """
 
@@ -259,8 +259,30 @@ def rule_disguised_file(view: CaseView) -> list[RuleResult]:
 
 
 # --------------------------------------------------------------------------- #
-# R1 — brute force then success
+# R1 — repeated failed logons (password guessing), with or without success
 # --------------------------------------------------------------------------- #
+
+
+def _bursts(fails: list[Evidence], window: timedelta) -> list[list[Evidence]]:
+    """Split failures into bursts: a gap longer than the window starts a new one."""
+    out: list[list[Evidence]] = []
+    for f in fails:
+        if out and f.event_time - out[-1][-1].event_time <= window:
+            out[-1].append(f)
+        else:
+            out.append([f])
+    return out
+
+
+def _dense_enough(burst: list[Evidence], window: timedelta, minimum: int) -> bool:
+    """True when some stretch of `window` holds at least `minimum` failures."""
+    j = 0
+    for i in range(len(burst)):
+        while burst[i].event_time - burst[j].event_time > window:
+            j += 1
+        if i - j + 1 >= minimum:
+            return True
+    return False
 
 
 def rule_bruteforce(view: CaseView, cfg: CorrelationConfig) -> list[RuleResult]:
@@ -273,31 +295,39 @@ def rule_bruteforce(view: CaseView, cfg: CorrelationConfig) -> list[RuleResult]:
     out = []
     for (_, ip), evs in sorted(by_src.items()):
         evs.sort(key=lambda x: x.event_time)
-        reported_users: set[str] = set()
-        for s in evs:
-            if s.data["outcome"] != "success":
+        fails = [e for e in evs if e.data["outcome"] == "failure"]
+        successes = [e for e in evs if e.data["outcome"] == "success"]
+        for burst in _bursts(fails, window):
+            if not _dense_enough(burst, window, cfg.r1_min_failures):
                 continue
-            user = s.data.get("user") or "?"
-            if user in reported_users:
-                continue
-            fails = [f for f in evs if f.data["outcome"] == "failure"
-                     and s.event_time - window <= f.event_time < s.event_time]
-            if len(fails) < cfg.r1_min_failures:
-                continue
-            reported_users.add(user)
-            targets = Counter(f.data.get("user") or "?" for f in fails)
-            rationale = (
-                f"{len(fails)} failed logons from {ip} between {fmt_time(fails[0].event_time)} "
-                f"and {fmt_time(fails[-1].event_time)} (accounts: "
-                f"{', '.join(f'{u} ×{n}' for u, n in targets.most_common(3))}), then a "
-                f"successful logon for {user} at {fmt_time(s.event_time)}, all within "
-                f"{cfg.r1_window_minutes} minutes. This pattern fits password guessing that "
-                f"succeeded; confirm with the account owner.")
-            out.append(RuleResult(
-                _finding(view, "R1", f"Repeated failed logons then success from {ip}",
-                         FindingCategory.SUSPICIOUS, Severity.HIGH, Confidence.HIGH, rationale,
-                         [f.id for f in fails] + [s.id]),
-                keys={Observable(type="ip", value=ip)}))
+            start, end = burst[0].event_time, burst[-1].event_time
+            targets = Counter(f.data.get("user") or "?" for f in burst)
+            accounts = ", ".join(f"{u} ×{n}" for u, n in targets.most_common(3))
+            if len(targets) > 3:
+                accounts += f" and {len(targets) - 3} more"
+            head = (f"{len(burst)} failed logons from {ip} on {burst[0].host} between "
+                    f"{fmt_time(start)} and {fmt_time(end)} (accounts: {accounts})")
+            # First success per account during the burst or within the window after it
+            won: dict[str, Evidence] = {}
+            for s in successes:
+                if start < s.event_time <= end + window:
+                    won.setdefault(s.data.get("user") or "?", s)
+            if won:
+                who = ", ".join(f"{u} at {fmt_time(s.event_time)}" for u, s in won.items())
+                rationale = (f"{head}, then a successful logon for {who}. This pattern fits "
+                             f"password guessing that succeeded; confirm with the account owner.")
+                finding = _finding(view, "R1", f"Repeated failed logons then success from {ip}",
+                                   FindingCategory.SUSPICIOUS, Severity.HIGH, Confidence.HIGH,
+                                   rationale, [f.id for f in burst] + [s.id for s in won.values()])
+            else:
+                rationale = (f"{head}. No successful logon from {ip} followed within "
+                             f"{cfg.r1_window_minutes} minutes. Someone tried to guess a password "
+                             f"and has not succeeded in the collected logs; check whether the "
+                             f"attempts continue or the account is locked.")
+                finding = _finding(view, "R1", f"Repeated failed logons from {ip} (no success seen)",
+                                   FindingCategory.SUSPICIOUS, Severity.MEDIUM, Confidence.HIGH,
+                                   rationale, [f.id for f in burst])
+            out.append(RuleResult(finding, keys={Observable(type="ip", value=ip)}))
     return out
 
 
@@ -403,7 +433,7 @@ def rule_flagged_file_executed(view: CaseView) -> list[RuleResult]:
 
 
 # --------------------------------------------------------------------------- #
-# R4 — pivot: a finding's key indicator seen in another source
+# R4 — pivot: a finding's key indicator seen in another source or event type
 # --------------------------------------------------------------------------- #
 
 
@@ -415,6 +445,13 @@ def _pivot_ok(view: CaseView, o: Observable) -> bool:
         if addr.is_loopback or addr.is_unspecified or addr.is_multicast or o.value in view.own_ips:
             return False
     return True
+
+
+def _describe(view: CaseView, ids: list[str]) -> str:
+    kinds = Counter(f"{view.by_id[x].kind.value.replace('_', ' ')} from "
+                    f"{view.by_id[x].source_module.value}" for x in ids)
+    refs = ", ".join(ids[:5]) + ("…" if len(ids) > 5 else "")
+    return f"{', '.join(f'{n} {k}' for k, n in kinds.items())} ({refs})"
 
 
 def rule_pivot(view: CaseView, stored: list[tuple[Finding, set[Observable]]]) -> list[Finding]:
@@ -429,32 +466,48 @@ def rule_pivot(view: CaseView, stored: list[tuple[Finding, set[Observable]]]) ->
             if mine & set(other.evidence_ids):
                 in_finding |= set(other.evidence_ids)
         lines, linked = [], []
+        any_independent = False
         for k in sorted(keys, key=lambda x: (x.type.value, x.value)):
             if not _pivot_ok(view, k):
                 continue
             origin = [x for x in f.evidence_ids if k in view.by_id[x].observables]
-            origin_modules = {view.by_id[x].source_module for x in origin}
-            new = [x for x in view.by_obs.get((k.type.value, k.value), [])
-                   if x not in in_finding
-                   and view.by_id[x].source_module not in origin_modules
-                   and view.by_id[x].kind is not EvidenceKind.INTERFACE]
-            if not origin or not new:
+            if not origin:
                 continue
-            new = list(dict.fromkeys(new))
-            if (k, frozenset(new)) in reported:
-                continue  # the same link was already reported from another finding
+            origin_modules = {view.by_id[x].source_module for x in origin}
+            origin_kinds = {(view.by_id[x].source_module, view.by_id[x].kind) for x in origin}
+            indep, other_kind = [], []
+            for x in dict.fromkeys(view.by_obs.get((k.type.value, k.value), [])):
+                e = view.by_id[x]
+                if x in in_finding or e.kind is EvidenceKind.INTERFACE:
+                    continue
+                if e.source_module not in origin_modules:
+                    indep.append(x)          # a different tool saw it
+                elif (e.source_module, e.kind) not in origin_kinds:
+                    other_kind.append(x)     # same tool, a different kind of event
+                # same tool and same kind of event = a repeat, not a new link
+            new = indep + other_kind
+            if not new or (k, frozenset(new)) in reported:
+                continue  # nothing new, or the same link was reported from another finding
             reported.add((k, frozenset(new)))
-            mods = sorted({view.by_id[x].source_module.value for x in new})
-            lines.append(f"{k.type.value} {k.value} also appears in {len(new)} record(s) from "
-                         f"{', '.join(mods)} ({', '.join(new[:5])}{'…' if len(new) > 5 else ''})")
+            any_independent = any_independent or bool(indep)
+            for group, label in ((indep, "independent source"),
+                                 (other_kind, "same source, different event type")):
+                if group:
+                    lines.append(f"{k.type.value} {k.value} also appears in {_describe(view, group)}"
+                                 f" — {label}")
             linked += origin + new
         if not linked:
             continue
         rationale = (f"Starting from {f.id} ({f.title}): " + "; ".join(lines) +
-                     ". The same indicator in independent sources links them; it does not "
-                     "prove they are the same activity.")
-        out.append(_finding(view, "R4", f"Indicator from {f.id} found in other sources",
-                            FindingCategory.CORRELATED, Severity.MEDIUM, Confidence.MEDIUM,
+                     ". The same indicator links these records; it does not prove they are "
+                     "the same activity." +
+                     ("" if any_independent else " All records come from one source, so the "
+                      "link is weaker than one confirmed by a second tool."))
+        out.append(_finding(view, "R4",
+                            f"Indicator from {f.id} found in "
+                            f"{'other sources' if any_independent else 'other events'}",
+                            FindingCategory.CORRELATED, Severity.MEDIUM,
+                            Confidence.MEDIUM if any_independent else Confidence.LOW,
                             rationale, linked))
     return out
 

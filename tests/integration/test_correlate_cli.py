@@ -51,7 +51,7 @@ def test_full_flow(tmp_path, monkeypatch):
 
     r = _run(home, "correlate", "--case", "CASE-001")
     assert r.exit_code == 0, r.output
-    for rule in ("IOC 2", "R1 1", "R2 1", "S1 1", "R5 1"):
+    for rule in ("IOC 2", "R1 1", "R2 1", "R4 2", "S1 1", "R5 1"):
         assert rule in r.output, r.output
 
     r = _run(home, "findings", "--case", "CASE-001", "--min-severity", "high")

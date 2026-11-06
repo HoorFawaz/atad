@@ -54,7 +54,7 @@ def build(case):
     # R1 decoy: only 4 failures before the success
     items += [logon("10.66.0.20", "failure", T0 + timedelta(seconds=10 * i)) for i in range(4)]
     items += [logon("10.66.0.20", "success", T0 + timedelta(minutes=1))]
-    # R1 decoy: 6 failures and no success
+    # R1 true (no success): 6 failures and no success -> medium finding
     items += [logon("10.66.0.30", "failure", T0 + timedelta(seconds=5 * i)) for i in range(6)]
     # R1 decoy: 6 failures spread over an hour (outside the 10-minute window)
     items += [logon("10.66.0.40", "failure", T0 - timedelta(minutes=12 * i)) for i in range(1, 7)]
@@ -134,6 +134,7 @@ EXPECTED = {
     ("S1", "Encoded PowerShell command on LAB-WS-02"),
     ("S2", "Disguised file: invoice.pdf.exe"),
     ("R1", "Repeated failed logons then success from 10.66.0.9"),
+    ("R1", "Repeated failed logons from 10.66.0.30 (no success seen)"),
     ("R2", "invoice.pdf.exe connected to known indicator 203.0.113.50"),
     ("R3", "YARA-flagged file was executed: invoice.pdf.exe"),
     ("R5", "Possible coordinated activity on LAB-WS-01"),
@@ -213,8 +214,43 @@ def test_timeline(scenario):
 def test_thresholds_and_disabled_rules(scenario):
     r = correlate(scenario.repo, CorrelationConfig(r1_min_failures=4, disabled_rules=("S2", "R5")))
     rules = r.by_rule
-    assert rules["R1"] == 2          # 10.66.0.20 now counts too
+    assert rules["R1"] == 3          # 10.66.0.20 now counts too
     assert "S2" not in rules and "R5" not in rules
+
+
+def test_r1_without_success_is_medium(scenario):
+    r = correlate(scenario.repo)
+    f = next(x for x in r.findings if "10.66.0.30" in x.title)
+    assert f.severity is Severity.MEDIUM and len(f.evidence_ids) == 6
+    assert "No successful logon" in f.rationale
+
+
+def test_r1_long_attack_is_one_finding(case):
+    # 40 failures, one every 30 s (20 minutes), then a success: one finding, not several
+    cid = case.case.id
+    items = [logon("10.66.0.77", "failure", T0 + timedelta(seconds=30 * i)) for i in range(40)]
+    items.append(logon("10.66.0.77", "success", T0 + timedelta(minutes=21)))
+    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
+    r1 = [f for f in correlate(case.repo).findings if f.rule_id == "R1"]
+    assert len(r1) == 1 and "40 failed logons" in r1[0].rationale
+    assert "success" in r1[0].title
+
+
+def test_r4_same_source_other_event_type(case):
+    # Brute-force IP later contacted by a process: both from the event logs
+    cid = case.case.id
+    items = [logon("10.66.0.9", "failure", T0 + timedelta(seconds=i)) for i in range(5)]
+    items.append(logon("10.66.0.9", "success", T0 + timedelta(minutes=2)))
+    items.append(logon("10.66.0.9", "failure", T0 + timedelta(hours=3)))  # repeat, not a link
+    items.append(ev("network_connection", "log", t=T0 + timedelta(minutes=5),
+                    data={"image": DROPPER}, obs=[("ip", "10.66.0.9")]))
+    stored = case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
+    pivots = [f for f in correlate(case.repo).findings if f.rule_id == "R4"]
+    assert len(pivots) == 1
+    p4 = pivots[0]
+    assert p4.title.endswith("found in other events") and p4.confidence is Confidence.LOW
+    assert "same source, different event type" in p4.rationale
+    assert stored[-1].id in p4.evidence_ids and stored[-2].id not in p4.evidence_ids
 
 
 def test_no_iocs_no_ioc_findings(case):

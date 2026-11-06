@@ -222,10 +222,10 @@ Correlation rules (link evidence across events and sources):
 
 | Rule | Logic | Severity / confidence | Category |
 |---|---|---|---|
-| R1 Brute force then success | ≥ 5 × 4625 then 4624 from the same source IP on the same host within 10 min | high / high | suspicious |
+| R1 Brute force | ≥ 5 × 4625 from the same source IP on the same host within 10 min. Failures closer than 10 min apart form one burst, so a long attack is one finding. A 4624 from that IP during the burst or within 10 min after it → *then success* | with success: high / high; without: medium / high | suspicious |
 | R2 Process → IOC connection | Network connection (psutil / Sysmon 3) to an IOC IP/domain/range, linked to its process by Sysmon ProcessGuid, else by PID + program path | high / indicator confidence | suspicious |
 | R3 Flagged file executed | A process with the SHA-256 of a YARA-matched file (high confidence), or the same path when no hash exists (medium) | high | suspicious |
-| R4 Indicator in other sources | A key indicator of a finding (IP, domain, hash, path) also appears in evidence from a different module. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium / medium | correlated |
+| R4 Indicator in other sources or events | A key indicator of a finding (IP, domain, hash, path) also appears in (a) evidence from a different module — *independent source*, or (b) the same module but a different kind of event — *same source, different event type* (e.g. the brute-force IP later contacted by a process, both from event logs). Repeats of the same kind of event from the same module are not links. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium; confidence medium with an independent source, low otherwise | correlated |
 | R5 Activity cluster | ≥ 3 suspicious findings on the same host within 15 min (by event time) | highest of the group / medium | hypothesis |
 
 Every finding stores its `rationale` text, e.g.
