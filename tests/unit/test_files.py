@@ -87,7 +87,8 @@ def test_excluded_folder_not_walked(evidence_dir):
 
 def test_known_hashes(evidence_dir):
     h = fc.hash_file(evidence_dir / "abc.txt")
-    assert h == {"sha256": ABC_SHA256, "md5": ABC_MD5, "size": 3}
+    assert h == {"sha256": ABC_SHA256, "sha1": "a9993e364706816aba3e25717850c26c9cd0d89d",
+                 "md5": ABC_MD5, "size": 3}
 
 
 def test_files_not_modified(evidence_dir):

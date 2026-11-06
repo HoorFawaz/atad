@@ -119,15 +119,19 @@ def _is_junction(p: Path) -> bool:
 
 
 def hash_file(path: Path) -> dict[str, Any]:
-    # MD5 is kept only to match IOC lists that still publish MD5 hashes.
-    sha256, md5 = hashlib.sha256(), hashlib.md5(usedforsecurity=False)
+    # SHA-1 and MD5 are kept only to match IOC lists that still publish them.
+    md5 = hashlib.md5(usedforsecurity=False)
+    sha256 = hashlib.sha256()
+    sha1 = hashlib.sha1(usedforsecurity=False)
     size = 0
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(_CHUNK), b""):
             sha256.update(chunk)
+            sha1.update(chunk)
             md5.update(chunk)
             size += len(chunk)
-    return {"sha256": sha256.hexdigest(), "md5": md5.hexdigest(), "size": size}
+    return {"sha256": sha256.hexdigest(), "sha1": sha1.hexdigest(), "md5": md5.hexdigest(),
+            "size": size}
 
 
 def collect_hashes(
@@ -370,6 +374,7 @@ def hashes_to_evidence(capture: dict, ctx: ParseContext) -> list[Evidence]:
             observables=[
                 Observable(type="path", value=rec["path"]),
                 Observable(type="sha256", value=rec["sha256"]),
+                Observable(type="sha1", value=rec["sha1"]),
                 Observable(type="md5", value=rec["md5"]),
             ],
         ))

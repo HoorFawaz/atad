@@ -67,6 +67,16 @@ atad net --target 192.168.1.15                     # interfaces + ping + Nmap + 
 atad net --target 192.168.1.0/24 --only scan --profile quick
 atad net scan --target 192.168.1.15 --ports 22,80,443,3389
 atad net interfaces
+
+# Indicators and correlation
+atad ioc load --case CASE-001 --path .\iocs.txt     # .txt (one per line) or .csv
+atad ioc list --case CASE-001
+atad ioc check --case CASE-001                     # which indicators appear (read-only)
+atad correlate --case CASE-001                     # link evidence into findings + timeline
+atad correlate --case CASE-001 --config .\correlation.yaml
+atad findings --case CASE-001 --min-severity high
+atad findings --case CASE-001 --show FND-0004      # why, and the evidence behind it
+atad timeline --case CASE-001 --findings-only
 ```
 
 Without `--case`, `atad net` creates a case and authorizes its `--target`.
@@ -78,9 +88,24 @@ YARA rules are read from `--rules`, `$ATAD_RULES` or `./rules`.
 Install YARA support with `pip install -e ".[yara]"`.
 
 Imported `.evtx` files are copied into the case (read-only, hashed) and atad
-reads only its copy. Large logs are slow to parse in pure Python
-(about 300 records per second); live collection filters to the supported
-event IDs and the `--hours` window first.
+reads only its copy. Live collection filters to the supported event IDs and
+the `--hours` window first.
+
+IOC lists are copied into the case the same way. Defanged indicators
+(`hxxp://`, `evil[.]com`) are accepted. A CSV needs a `value` column and may add
+`type`, `confidence` (low/medium/high) and `description`.
+
+`atad correlate` can be run as often as needed: it replaces its earlier findings
+and rebuilds the timeline. Every finding says in plain words why the evidence was
+linked. Thresholds can be changed with a YAML file:
+
+```yaml
+r1_min_failures: 5      # failed logons before a success
+r1_window_minutes: 10
+r5_min_findings: 3      # suspicious findings on one host
+r5_window_minutes: 15
+disabled_rules: [S2]
+```
 
 Cases are stored in `./cases` (override with `--home` or the `ATAD_HOME`
 environment variable).

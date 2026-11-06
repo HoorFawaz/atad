@@ -202,7 +202,7 @@ def event_to_evidence(event: dict[str, Any], ctx: ParseContext) -> Evidence | No
                         observables=_obs(("path", image), ("pid", pid),
                                          ("process_guid", _clean(d.get("ProcessGuid"))),
                                          ("user", user), ("sha256", h.get("sha256")),
-                                         ("md5", h.get("md5"))) + host_obs)
+                                         ("sha1", h.get("sha1")), ("md5", h.get("md5"))) + host_obs)
 
     if channel == SYSMON and eid == 3:
         image = _clean(d.get("Image"))

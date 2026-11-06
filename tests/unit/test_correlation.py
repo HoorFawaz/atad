@@ -1,0 +1,226 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+
+"""Correlation on a labelled, SIMULATED scenario.
+
+Every rule has at least one true case and one decoy that looks similar but
+must NOT produce a finding. The test checks the exact set of findings, so a
+missed link (recall) or an extra one (precision) fails it.
+"""
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from atad.correlation.config import CorrelationConfig
+from atad.correlation.engine import correlate
+from atad.correlation.rules import host_key
+from atad.evidence.models import (
+    CollectionMode,
+    Confidence,
+    Evidence,
+    FindingCategory,
+    Ioc,
+    Observable,
+    Severity,
+)
+
+T0 = datetime(2026, 11, 7, 10, 0, tzinfo=timezone.utc)
+WS1, WS2 = "LAB-WS-01", "LAB-WS-02"
+DROPPER = "C:\\Users\\bob\\AppData\\Local\\Temp\\invoice.pdf.exe"
+SHA_DROPPER = "1" * 64
+SHA_UNUSED = "2" * 64
+GUID = "{aaaa1111-0000-0000-0000-000000000001}"
+
+
+def ev(kind, module, host=WS1, t=None, data=None, obs=(), summary=None):
+    return Evidence(case_id="X", kind=kind, source_module=module, source_tool="test",
+                    collection_mode=CollectionMode.IMPORT, host=host, host_declared=True, event_time=t,
+                    summary=summary or f"{kind} test", data=data or {},
+                    observables=[Observable(type=k, value=v) for k, v in obs], simulated=True)
+
+
+def logon(ip, outcome, t, user="lab\\bob"):
+    return ev("logon", "log", t=t, data={"outcome": outcome, "source_ip": ip, "user": user},
+              obs=[("ip", ip), ("user", user)])
+
+
+def build(case):
+    cid = case.case.id
+    items = []
+    # R1 true: 6 failures in 4 minutes, then success
+    items += [logon("10.66.0.9", "failure", T0 + timedelta(seconds=40 * i)) for i in range(6)]
+    items += [logon("10.66.0.9", "success", T0 + timedelta(minutes=6))]
+    # R1 decoy: only 4 failures before the success
+    items += [logon("10.66.0.20", "failure", T0 + timedelta(seconds=10 * i)) for i in range(4)]
+    items += [logon("10.66.0.20", "success", T0 + timedelta(minutes=1))]
+    # R1 decoy: 6 failures and no success
+    items += [logon("10.66.0.30", "failure", T0 + timedelta(seconds=5 * i)) for i in range(6)]
+    # R1 decoy: 6 failures spread over an hour (outside the 10-minute window)
+    items += [logon("10.66.0.40", "failure", T0 - timedelta(minutes=12 * i)) for i in range(1, 7)]
+    items += [logon("10.66.0.40", "success", T0)]
+
+    # S1 true: encoded PowerShell (4688)
+    items.append(ev("process", "log", t=T0 + timedelta(minutes=7), data={
+        "command_line": "powershell.exe -EncodedCommand SQBFAFgA",
+        "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"},
+        obs=[("path", "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")]))
+    # S1 decoy: -ExecutionPolicy is not an encoded command
+    items.append(ev("process", "host", data={
+        "cmdline": "powershell.exe -ExecutionPolicy Bypass -File backup.ps1"}))
+
+    # Dropper: Sysmon 1 process with hash and GUID
+    items.append(ev("process", "log", t=T0 + timedelta(minutes=7, seconds=30),
+                    data={"image": DROPPER, "command_line": "invoice.pdf.exe"},
+                    obs=[("path", DROPPER), ("pid", "4120"), ("process_guid", GUID),
+                         ("sha256", SHA_DROPPER)]))
+    # R2 true: Sysmon 3 from the dropper to a high-confidence IOC (also a URL-IOC domain)
+    items.append(ev("network_connection", "log", t=T0 + timedelta(minutes=8),
+                    data={"image": DROPPER, "destination_port": "443"},
+                    obs=[("path", DROPPER), ("pid", "4120"), ("process_guid", GUID),
+                         ("domain", "evil.example"), ("ip", "203.0.113.50")]))
+    # R2 decoy: connection to an IOC range, but no process record to link it to
+    items.append(ev("network_connection", "host", data={"exe": "C:\\Windows\\svchost.exe"},
+                    obs=[("pid", "999"), ("path", "C:\\Windows\\svchost.exe"),
+                         ("ip", "198.51.100.7")]))
+
+    # Files: the dropper is disguised (S2) and matches YARA (YARA, R3)
+    items.append(ev("file", "files", data={"name": "invoice.pdf.exe", "path": DROPPER,
+                                           "suspicious_reasons": ["double extension"]},
+                    obs=[("path", DROPPER), ("sha256", SHA_DROPPER)]))
+    items.append(ev("yara_match", "files",
+                    data={"path": DROPPER, "sha256": SHA_DROPPER, "rule": "Demo_Dropper",
+                          "meta": {"severity": "high"}},
+                    obs=[("path", DROPPER), ("sha256", SHA_DROPPER)]))
+    # S2 decoy: ordinary file
+    items.append(ev("file", "files", data={"name": "notes.txt", "path": "C:\\notes.txt",
+                                           "suspicious_reasons": []},
+                    obs=[("path", "C:\\notes.txt")]))
+    # R3 decoy: YARA match on a file that never ran
+    items.append(ev("yara_match", "files",
+                    data={"path": "C:\\tools\\unused.dll", "sha256": SHA_UNUSED, "rule": "Demo_Lib"},
+                    obs=[("path", "C:\\tools\\unused.dll"), ("sha256", SHA_UNUSED)]))
+
+    # R4 true: the brute-force IP also shows up in a live connection (host module)
+    items.append(ev("network_connection", "host", data={"exe": "C:\\Windows\\System32\\svchost.exe"},
+                    obs=[("ip", "10.66.0.9")]))
+    # R4 / IOC decoy: this machine's own address
+    items.append(ev("interface", "net", obs=[("ip", "10.66.0.5")]))
+
+    # R5 decoy: only two suspicious findings on WS2
+    items.append(ev("process", "log", host=WS2, t=T0 - timedelta(hours=1),
+                    data={"command_line": "powershell -enc AAAA"}))
+
+    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
+    case.repo.add_iocs([
+        Ioc(case_id=cid, type="ip", value="203.0.113.50", source="c2.txt", confidence=Confidence.HIGH),
+        Ioc(case_id=cid, type="url", value="http://evil.example/payload", source="c2.txt"),
+        Ioc(case_id=cid, type="cidr", value="198.51.100.0/24", source="ranges.txt",
+            confidence=Confidence.LOW),
+        Ioc(case_id=cid, type="sha256", value=SHA_DROPPER, source="hashes.txt"),
+        Ioc(case_id=cid, type="ip", value="192.0.2.99", source="c2.txt"),   # decoy: not seen
+        Ioc(case_id=cid, type="ip", value="10.66.0.5", source="c2.txt"),    # decoy: own address
+    ])
+
+
+EXPECTED = {
+    ("IOC", "Known indicator seen: 203.0.113.50"),
+    ("IOC", "Known indicator seen: http://evil.example/payload"),
+    ("IOC", "Known indicator seen: 198.51.100.0/24"),
+    ("IOC", f"Known indicator seen: {SHA_DROPPER[:39]}…"),
+    ("YARA", "YARA rule 'Demo_Dropper' matched invoice.pdf.exe"),
+    ("YARA", "YARA rule 'Demo_Lib' matched unused.dll"),
+    ("S1", "Encoded PowerShell command on LAB-WS-01"),
+    ("S1", "Encoded PowerShell command on LAB-WS-02"),
+    ("S2", "Disguised file: invoice.pdf.exe"),
+    ("R1", "Repeated failed logons then success from 10.66.0.9"),
+    ("R2", "invoice.pdf.exe connected to known indicator 203.0.113.50"),
+    ("R3", "YARA-flagged file was executed: invoice.pdf.exe"),
+    ("R5", "Possible coordinated activity on LAB-WS-01"),
+}
+
+
+@pytest.fixture
+def scenario(case):
+    build(case)
+    return case
+
+
+def _labels(findings):
+    return {(f.rule_id, f.title) for f in findings if f.rule_id != "R4"}
+
+
+def test_precision_and_recall(scenario):
+    r = correlate(scenario.repo)
+    got = _labels(r.findings)
+    tp = got & EXPECTED
+    precision = len(tp) / len(got)
+    recall = len(tp) / len(EXPECTED)
+    assert (precision, recall) == (1.0, 1.0), (
+        f"missed: {sorted(EXPECTED - got)}\nextra: {sorted(got - EXPECTED)}")
+
+
+def test_r4_pivots(scenario):
+    r = correlate(scenario.repo)
+    by_id = {f.id: f for f in r.findings}
+    pivots = [f for f in r.findings if f.rule_id == "R4"]
+    origins = {by_id[f.title.split()[2]].rule_id for f in pivots}
+    # R1's IP seen in a live connection; the YARA file path seen in Sysmon 3
+    assert origins == {"R1", "YARA"}
+    assert all(f.category is FindingCategory.CORRELATED for f in pivots)
+    assert not any("10.66.0.5" in f.rationale for f in r.findings)
+
+
+def test_details(scenario):
+    r = correlate(scenario.repo)
+    f = {x.rule_id + x.title: x for x in r.findings}
+    r1 = f["R1Repeated failed logons then success from 10.66.0.9"]
+    assert r1.severity is Severity.HIGH and len(r1.evidence_ids) == 7
+    assert "6 failed logons" in r1.rationale and "lab\\bob" in r1.rationale
+    r2 = f["R2invoice.pdf.exe connected to known indicator 203.0.113.50"]
+    assert "ProcessGuid" in r2.rationale and r2.confidence is Confidence.HIGH
+    r3 = f["R3YARA-flagged file was executed: invoice.pdf.exe"]
+    assert r3.confidence is Confidence.HIGH and "SHA-256" in r3.rationale
+    yara = f["YARAYARA rule 'Demo_Dropper' matched invoice.pdf.exe"]
+    assert yara.severity is Severity.HIGH
+    url = f["IOCKnown indicator seen: http://evil.example/payload"]
+    assert "domain evil.example" in url.rationale
+    r5 = f["R5Possible coordinated activity on LAB-WS-01"]
+    assert r5.category is FindingCategory.HYPOTHESIS and "hypothesis" in r5.rationale
+
+
+def test_rerun_replaces_and_ids_grow(scenario):
+    first = correlate(scenario.repo)
+    second = correlate(scenario.repo)
+    assert second.removed == len(first.findings)
+    assert len(scenario.repo.list_findings()) == len(second.findings)
+    assert _labels(first.findings) == _labels(second.findings)
+    assert min(f.id for f in second.findings) > max(f.id for f in first.findings)
+
+
+def test_timeline(scenario):
+    r = correlate(scenario.repo)
+    tl = scenario.repo.list_timeline()
+    assert len(tl) == r.timeline_events
+    times = [e["event_time"] for e in tl]
+    assert times == sorted(times)
+    markers = [e for e in tl if e["finding_id"]]
+    assert markers and all(e["description"].startswith(f"[{e['finding_id']} ·") for e in markers)
+    # Evidence without an event time (e.g. files) is not placed on the timeline
+    assert all(e["evidence_id"] is None or e["event_time"] for e in tl)
+
+
+def test_thresholds_and_disabled_rules(scenario):
+    r = correlate(scenario.repo, CorrelationConfig(r1_min_failures=4, disabled_rules=("S2", "R5")))
+    rules = r.by_rule
+    assert rules["R1"] == 2          # 10.66.0.20 now counts too
+    assert "S2" not in rules and "R5" not in rules
+
+
+def test_no_iocs_no_ioc_findings(case):
+    assert correlate(case.repo).findings == []
+
+
+def test_host_key():
+    assert host_key("LAB-WS-01.lab.local") == host_key("lab-ws-01")
+    assert host_key("10.0.0.5") == "10.0.0.5"

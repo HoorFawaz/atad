@@ -31,7 +31,7 @@ _USER_WRITABLE = (
     "\\appdata\\local\\temp\\", "\\windows\\temp\\", "\\downloads\\", "\\users\\public\\",
     "\\appdata\\roaming\\", "/tmp/", "/dev/shm/", "/var/tmp/",
 )
-_ENCODED_PS = re.compile(r"(?i)powershell.*\s-(e|en|enc|enco|encod|encode|encoded|encodedcommand)\s")
+ENCODED_POWERSHELL = re.compile(r"(?i)powershell.*\s-(e|ec|en|enc|enco|encod|encode|encoded|encodedcommand)\s")
 
 
 def _iso(ts: float | None) -> str | None:
@@ -97,7 +97,7 @@ def process_flags(exe: str | None, cmdline: str | None, exe_exists: bool | None)
     win = low.replace("/", "\\")
     if exe and any(d in low or d in win for d in _USER_WRITABLE):
         reasons.append("runs from a user-writable folder")
-    if cmdline and _ENCODED_PS.search(cmdline + " "):
+    if cmdline and ENCODED_POWERSHELL.search(cmdline + " "):
         reasons.append("PowerShell with an encoded command")
     if exe and exe_exists is False:
         reasons.append("program file no longer exists on disk")

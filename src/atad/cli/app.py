@@ -12,8 +12,10 @@ import typer
 
 from atad import __version__
 from atad.cli import cases as cases_cli
+from atad.cli import correlate as correlate_cli
 from atad.cli import files as files_cli
 from atad.cli import host as host_cli
+from atad.cli import ioc as ioc_cli
 from atad.cli import log as log_cli
 from atad.cli import net as net_cli
 from atad.cli import scope as scope_cli
@@ -33,6 +35,10 @@ app.add_typer(files_cli.app, name="files")
 app.add_typer(log_cli.app, name="log")
 app.add_typer(host_cli.app, name="host")
 app.add_typer(net_cli.app, name="net")
+app.add_typer(ioc_cli.app, name="ioc")
+app.command("correlate")(correlate_cli.correlate)
+app.command("findings")(correlate_cli.findings)
+app.command("timeline")(correlate_cli.timeline)
 
 
 def _version(value: bool) -> None:

@@ -209,18 +209,40 @@ cases/CASE-001/
 
 ## 7. Correlation rule catalogue (MVP)
 
-| Rule | Logic | Output category |
-|---|---|---|
-| R1 Brute force then success | ≥ 5 × 4625 then 4624 from the same source IP within 10 min | suspicious |
-| R2 Process → IOC connection | Network connection (psutil / Sysmon 3) to an IP/domain in the IOC list, linked to its process | suspicious |
-| R3 Malicious file executed | Process image SHA-256 = SHA-256 of a file with a YARA match | suspicious |
-| R4 Indicator in many sources | Same IOC observable in ≥ 2 different modules | correlated |
-| R5 Activity cluster | ≥ 3 suspicious items on the same host within 15 min | hypothesis |
+Single-source rules (each turns one kind of suspicious evidence into a finding):
 
-Every rule result stores its `rationale` text, e.g.
-*"5 failed logons from 10.0.0.66 between 10:02 and 10:05, then a successful logon for user bob at 10:06."*
+| Rule | Logic | Severity / confidence | Category |
+|---|---|---|---|
+| IOC Indicator seen | An observable equals a loaded indicator (IP, domain, URL host, hash) or an IP falls in a loaded CIDR range. The machine's own interface addresses are ignored | from the indicator's confidence | suspicious |
+| YARA Rule matched | A `yara_match` record | the rule's `meta: severity`, else medium | suspicious |
+| S1 Encoded PowerShell | Process command line with `-enc` / `-EncodedCommand` (and short forms) | medium / medium | suspicious |
+| S2 Disguised file | File whose real type does not match its extension, or a double extension | medium / medium | suspicious |
 
-Thresholds live in a config file so they are visible and adjustable.
+Correlation rules (link evidence across events and sources):
+
+| Rule | Logic | Severity / confidence | Category |
+|---|---|---|---|
+| R1 Brute force then success | ≥ 5 × 4625 then 4624 from the same source IP on the same host within 10 min | high / high | suspicious |
+| R2 Process → IOC connection | Network connection (psutil / Sysmon 3) to an IOC IP/domain/range, linked to its process by Sysmon ProcessGuid, else by PID + program path | high / indicator confidence | suspicious |
+| R3 Flagged file executed | A process with the SHA-256 of a YARA-matched file (high confidence), or the same path when no hash exists (medium) | high | suspicious |
+| R4 Indicator in other sources | A key indicator of a finding (IP, domain, hash, path) also appears in evidence from a different module. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium / medium | correlated |
+| R5 Activity cluster | ≥ 3 suspicious findings on the same host within 15 min (by event time) | highest of the group / medium | hypothesis |
+
+Every finding stores its `rationale` text, e.g.
+*"5 failed logons from 10.66.0.9 between 10:02:00 and 10:02:04 UTC (accounts: LAB\\bob ×5),
+then a successful logon for LAB\\bob at 10:06:00 UTC, all within 10 minutes."*
+
+Rules run in this order: single-source rules and R1–R3, then R4 (needs their
+findings), then R5 (needs all suspicious findings). Re-running `atad correlate`
+deletes the earlier rule findings and stores new ones; finding numbers keep
+increasing, so an old id never points at a different finding.
+
+The timeline is rebuilt each run: every evidence record with an event time,
+plus one marker per finding at the time of its earliest evidence. Times are UTC.
+
+Thresholds and disabled rules can be set in a YAML file (`--config`).
+The test suite includes a labelled scenario with decoys for every rule and
+checks precision and recall on it.
 
 ---
 

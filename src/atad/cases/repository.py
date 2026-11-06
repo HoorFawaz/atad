@@ -23,6 +23,7 @@ from atad.evidence.models import (
     Evidence,
     Execution,
     Finding,
+    Ioc,
     Observable,
     Target,
 )
@@ -157,7 +158,9 @@ class CaseRepository:
             return []
         stored: list[Evidence] = []
         with self.connect() as conn:
-            n = conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
+            n = conn.execute(
+                "SELECT COALESCE(MAX(CAST(SUBSTR(id, 5) AS INTEGER)), 0) FROM evidence"
+            ).fetchone()[0]
             for i, ev in enumerate(items, start=1):
                 ev_id = f"EVD-{n + i:06d}"
                 conn.execute(
@@ -204,10 +207,21 @@ class CaseRepository:
             ).fetchall()
         return self._row_to_evidence(row, obs)
 
-    def list_evidence(self) -> list[Evidence]:
+    def list_evidence(self, kinds: list[str] | None = None) -> list[Evidence]:
+        """All evidence, or only the given kinds (e.g. ["logon", "process"])."""
         with self.connect() as conn:
-            rows = conn.execute("SELECT * FROM evidence ORDER BY id").fetchall()
-            obs_rows = conn.execute("SELECT evidence_id, type, value FROM observables").fetchall()
+            if kinds:
+                marks = ",".join("?" * len(kinds))
+                rows = conn.execute(
+                    f"SELECT * FROM evidence WHERE kind IN ({marks}) ORDER BY id", kinds
+                ).fetchall()
+                obs_rows = conn.execute(
+                    "SELECT o.evidence_id, o.type, o.value FROM observables o"
+                    f" JOIN evidence e ON e.id = o.evidence_id WHERE e.kind IN ({marks})", kinds
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM evidence ORDER BY id").fetchall()
+                obs_rows = conn.execute("SELECT evidence_id, type, value FROM observables").fetchall()
         by_ev: dict[str, list[sqlite3.Row]] = {}
         for o in obs_rows:
             by_ev.setdefault(o["evidence_id"], []).append(o)
@@ -249,35 +263,64 @@ class CaseRepository:
     # --------------------------------------------------------------- findings
 
     def add_finding(self, f: Finding) -> Finding:
-        if f.id is not None:
-            raise ValidationError("finding already has an id; ids are assigned on insert")
+        return self.add_findings_many([f])[0]
+
+    def add_findings_many(self, items: list[Finding]) -> list[Finding]:
+        """Store findings and their evidence links in one transaction."""
+        for f in items:
+            if f.id is not None:
+                raise ValidationError("finding already has an id; ids are assigned on insert")
+        if not items:
+            return []
+        stored: list[Finding] = []
         with self.connect() as conn:
-            for ev_id in f.evidence_ids:
-                if conn.execute("SELECT 1 FROM evidence WHERE id = ?", (ev_id,)).fetchone() is None:
-                    raise ValidationError(f"finding references unknown evidence {ev_id}")
-            n = conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
-            f_id = f"FND-{n + 1:04d}"
+            for f in items:
+                for ev_id in f.evidence_ids:
+                    if conn.execute("SELECT 1 FROM evidence WHERE id = ?", (ev_id,)).fetchone() is None:
+                        raise ValidationError(f"finding references unknown evidence {ev_id}")
+            # Numbers continue from the highest id ever used, so ids are never
+            # reused after findings are regenerated.
+            n = max(
+                conn.execute(
+                    "SELECT COALESCE(MAX(CAST(SUBSTR(id, 5) AS INTEGER)), 0) FROM findings"
+                ).fetchone()[0],
+                int(self._meta(conn, "last_finding_number") or 0),
+            )
+            for i, f in enumerate(items, start=1):
+                f_id = f"FND-{n + i:04d}"
+                conn.execute(
+                    "INSERT INTO findings(id, case_id, title, description, category, severity,"
+                    " confidence, rule_id, rationale, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (f_id, f.case_id, f.title, f.description, f.category.value, f.severity.value,
+                     f.confidence.value, f.rule_id, f.rationale, _ts(f.created_at)),
+                )
+                conn.executemany(
+                    "INSERT INTO finding_evidence(finding_id, evidence_id) VALUES (?,?)",
+                    [(f_id, e) for e in dict.fromkeys(f.evidence_ids)],
+                )
+                stored.append(f.model_copy(update={"id": f_id}))
             conn.execute(
-                "INSERT INTO findings(id, case_id, title, description, category, severity,"
-                " confidence, rule_id, rationale, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (
-                    f_id,
-                    f.case_id,
-                    f.title,
-                    f.description,
-                    f.category.value,
-                    f.severity.value,
-                    f.confidence.value,
-                    f.rule_id,
-                    f.rationale,
-                    _ts(f.created_at),
-                ),
+                "INSERT OR REPLACE INTO meta(key, value) VALUES ('last_finding_number', ?)",
+                (str(n + len(items)),),
             )
-            conn.executemany(
-                "INSERT INTO finding_evidence(finding_id, evidence_id) VALUES (?,?)",
-                [(f_id, e) for e in f.evidence_ids],
-            )
-        return f.model_copy(update={"id": f_id})
+        return stored
+
+    def delete_findings_by_rules(self, rule_ids: list[str]) -> int:
+        """Remove findings produced by these rules (before re-running them)."""
+        if not rule_ids:
+            return 0
+        marks = ",".join("?" * len(rule_ids))
+        with self.connect() as conn:
+            conn.execute(
+                f"DELETE FROM timeline_events WHERE finding_id IN"
+                f" (SELECT id FROM findings WHERE rule_id IN ({marks}))", rule_ids)
+            cur = conn.execute(f"DELETE FROM findings WHERE rule_id IN ({marks})", rule_ids)
+            return cur.rowcount
+
+    @staticmethod
+    def _meta(conn: sqlite3.Connection, key: str) -> str | None:
+        row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
 
     def list_findings(self) -> list[Finding]:
         with self.connect() as conn:
@@ -400,6 +443,63 @@ class CaseRepository:
     def list_tools(self) -> list[dict]:
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM tools ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+
+    # -------------------------------------------------------------------- iocs
+
+    def add_iocs(self, iocs: list[Ioc]) -> int:
+        """Store indicators; duplicates (same type, value and source) are ignored."""
+        with self.connect() as conn:
+            before = conn.total_changes
+            conn.executemany(
+                "INSERT OR IGNORE INTO iocs(case_id, type, value, source, confidence, description,"
+                " added_at) VALUES (?,?,?,?,?,?,?)",
+                [(i.case_id, i.type, i.value, i.source, i.confidence.value, i.description,
+                  _ts(i.added_at)) for i in iocs],
+            )
+            return conn.total_changes - before
+
+    def list_iocs(self) -> list[Ioc]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT * FROM iocs ORDER BY id").fetchall()
+        return [Ioc(id=r["id"], case_id=r["case_id"], type=r["type"], value=r["value"],
+                    source=r["source"], confidence=r["confidence"], description=r["description"],
+                    added_at=_dt(r["added_at"])) for r in rows]
+
+    def match_iocs_exact(self) -> list[sqlite3.Row]:
+        """(ioc row, evidence_id) pairs where an observable equals an indicator."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT i.id AS ioc_id, i.type, i.value, o.evidence_id FROM iocs i"
+                " JOIN observables o ON o.type = i.type AND o.value = i.value"
+                " ORDER BY i.id, o.evidence_id"
+            ).fetchall()
+
+    def observables_of_type(self, kind: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT evidence_id, value FROM observables WHERE type = ?", (kind,)
+            ).fetchall()
+
+    # ---------------------------------------------------------------- timeline
+
+    def replace_timeline(self, events: list[dict]) -> int:
+        """Rebuild the case timeline from scratch."""
+        with self.connect() as conn:
+            conn.execute("DELETE FROM timeline_events")
+            conn.executemany(
+                "INSERT INTO timeline_events(case_id, event_time, host, description, evidence_id,"
+                " finding_id) VALUES (:case_id, :event_time, :host, :description, :evidence_id,"
+                " :finding_id)",
+                events,
+            )
+        return len(events)
+
+    def list_timeline(self) -> list[dict]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM timeline_events ORDER BY event_time, id"
+            ).fetchall()
         return [dict(r) for r in rows]
 
     # ----------------------------------------------------------------- counts

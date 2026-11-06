@@ -13,6 +13,12 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - Single-file executable build, release package with rules and SHA256SUMS, GitHub Actions.
 - `--max-files`, `--max-events`, `--max-hosts` options.
 - License: ATAD Source-Available License 1.0 (Arabic text official).
+- `atad ioc load|list|check`: IOC lists (.txt / .csv, defanged values, CIDR ranges),
+  copied into the case and hashed (M6).
+- `atad correlate`, `atad findings`, `atad timeline`: rules IOC, YARA, S1, S2, R1–R5
+  with a plain-language reason for every finding, configurable thresholds, and a
+  rebuilt UTC timeline (M6).
+- SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.
 

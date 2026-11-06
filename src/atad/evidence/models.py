@@ -123,6 +123,7 @@ class ObservableType(str, Enum):
     DOMAIN = "domain"
     URL = "url"
     SHA256 = "sha256"
+    SHA1 = "sha1"
     MD5 = "md5"
     PATH = "path"
     USER = "user"
@@ -132,6 +133,7 @@ class ObservableType(str, Enum):
 
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+_HEX40 = re.compile(r"^[0-9a-f]{40}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 
 
@@ -153,6 +155,11 @@ def normalize_observable(kind: ObservableType, value: str) -> str:
         v = v.lower()
         if not _HEX64.match(v):
             raise ValueError(f"not a SHA-256 hash: {value!r}")
+        return v
+    if kind is ObservableType.SHA1:
+        v = v.lower()
+        if not _HEX40.match(v):
+            raise ValueError(f"not a SHA-1 hash: {value!r}")
         return v
     if kind is ObservableType.MD5:
         v = v.lower()
@@ -316,6 +323,24 @@ class Execution(BaseModel):
     @classmethod
     def _utc(cls, v: datetime | None) -> datetime | None:
         return None if v is None else ensure_utc(v)
+
+
+class Ioc(BaseModel):
+    """An indicator of compromise loaded from a list."""
+
+    id: int | None = None
+    case_id: str
+    type: str                             # ObservableType value, or "cidr"
+    value: str
+    source: str                           # list name / file it came from
+    confidence: Confidence = Confidence.MEDIUM
+    description: str = ""
+    added_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("added_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return ensure_utc(v)
 
 
 class Target(BaseModel):
