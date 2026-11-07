@@ -27,6 +27,9 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - `atad report`: self-contained HTML report and JSON report from the same data, with
   findings linked to evidence, coverage of every check, and a fresh integrity check of
   every raw file (exit code 4 when one changed or is missing) (M7).
+- HTML report laid out as a formal investigation report: document control table,
+  executive summary, numbered sections, evidence integrity, coverage and limitations,
+  appendices and reviewer sign-off; TLP 2.0 classification (`--tlp`).
 - `atad export timeline` (CSV / JSONL with Timesketch fields) and `atad export case`
   (case zip with SHA256SUMS.txt) (M7).
 - `atad triage` with profiles soc / dfir / full: runs the modules on this machine,

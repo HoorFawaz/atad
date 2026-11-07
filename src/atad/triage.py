@@ -107,7 +107,8 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
                iocs: Path | None = None, ioc_confidence: Confidence = Confidence.MEDIUM,
                rules: Path | None = None, hours: int | None = None,
                allow_public: bool = False,
-               correlation: CorrelationConfig | None = None) -> TriageResult:
+               correlation: CorrelationConfig | None = None,
+               tlp: str = "amber") -> TriageResult:
     res = TriageResult(case=oc, profile=profile)
 
     if iocs is not None:
@@ -151,7 +152,7 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
         res.steps.append(StepResult("net", "skipped", "left out (--only/--skip)"))
 
     res.correlation = correlate(oc.repo, correlation)
-    res.reports, res.report_data = write_reports(oc)
+    res.reports, res.report_data = write_reports(oc, tlp=tlp)
     if profile.exports:
         written, _ = export_timeline(oc)
         res.exports += [p for p, _ in written]

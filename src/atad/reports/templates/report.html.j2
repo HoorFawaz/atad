@@ -1,296 +1,350 @@
 {#- Copyright (C) 2026 Hoor Fawaz
     SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
-    ATAD HTML report. Self-contained: no external fonts, scripts or images. -#}
+    ATAD investigation report. One self-contained file: no external fonts, scripts or images.
+    Structure follows common forensic report practice (SWGDE 18-Q-002): identification,
+    scope, results with their basis, items examined with hashes, limitations. -#}
+{%- set s = r.summary -%}
+{%- set tlp = r.report.classification -%}
+{%- set tlp_class = tlp | lower | replace('tlp:', '') | replace('+strict', '') -%}
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="{{ r.report.generator }}">
-<title>{{ r.case.id }} — {{ r.case.name }}</title>
+<title>{{ r.report.id }} — Investigation Report — {{ r.case.name }}</title>
 <style>
 :root {
-  --paper: #f5f1e8; --sheet: #fffdf8; --ink: #1f1c17; --muted: #6d665a; --rule: #ddd5c4;
-  --accent: #0f5c5c; --accent-soft: #e2eeec;
-  --critical: #7a0e1d; --high: #b3261e; --medium: #a65f00; --low: #2f6a86; --info: #6b665c;
-  --ok: #2f6b3a; --bad: #b3261e;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #16150f; --sheet: #1e1c16; --ink: #ece6d8; --muted: #a59d8d; --rule: #3a362c;
-    --accent: #6cc3b9; --accent-soft: #1f3330;
-    --critical: #ff6b7d; --high: #ff7a6b; --medium: #f0a940; --low: #7cc0e0; --info: #a59d8d;
-    --ok: #79c98a; --bad: #ff7a6b;
-  }
+  --ink: #16202a; --muted: #5a6672; --faint: #8a949e; --line: #d4d9de; --line-strong: #9aa4ad;
+  --head: #1f3550; --head-bg: #eef1f4; --zebra: #f8f9fa; --page: #ffffff; --desk: #e9ecef;
+  --critical: #7a1020; --high: #b42318; --medium: #b54708; --low: #175cd3; --info: #4b5563;
+  --ok: #067647; --bad: #b42318;
+  --sans: "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --mono: Consolas, "Cascadia Mono", "SFMono-Regular", Menlo, "Liberation Mono", monospace;
 }
 * { box-sizing: border-box; }
-html { background: var(--paper); }
-body { margin: 0; color: var(--ink); background: var(--paper); font: 15px/1.55 var(--sans); }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-code, .mono { font-family: var(--mono); font-size: .86em; }
-.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+html { background: var(--desk); }
+body { margin: 0; background: var(--desk); color: var(--ink); font: 13.5px/1.5 var(--sans);
+       font-variant-numeric: tabular-nums; }
+a { color: var(--head); }
+.mono, code { font-family: var(--mono); font-size: 12px; }
+.doc { max-width: 980px; margin: 24px auto; background: var(--page); border: 1px solid var(--line);
+       padding: 0 48px 32px; }
 
-/* ---- cover ---- */
-.cover { background: var(--sheet); border-bottom: 1px solid var(--rule); }
-.cover .wrap { display: grid; grid-template-columns: auto 1fr; gap: 28px; padding: 36px 16px 30px; align-items: center; }
-.stamp { border: 2px solid var(--ink); padding: 10px 16px; transform: rotate(-2deg); text-align: center; }
-.stamp small { display: block; font: 600 10px/1.2 var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-.stamp strong { display: block; font: 700 24px/1.2 var(--mono); letter-spacing: .02em; }
-.cover h1 { font: 600 32px/1.15 var(--serif); margin: 0 0 6px; }
-.cover .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
-.tape { background: repeating-linear-gradient(-45deg, #f3c623 0 14px, #1f1c17 14px 28px); padding: 4px 0; }
-.tape span { display: block; width: max-content; margin: 0 auto; background: #f3c623; color: #1f1c17; font: 700 12px/1.6 var(--sans); letter-spacing: .14em; padding: 0 12px; text-transform: uppercase; }
+/* classification bar (TLP 2.0 colours: label text on black) */
+.tlpbar { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+          border-bottom: 1px solid var(--line); padding: 10px 0; font-size: 11.5px; color: var(--muted); }
+.tlpbar.bottom { border-bottom: 0; border-top: 1px solid var(--line); margin-top: 28px; }
+.tlp { background: #000; font: 700 12px/1 var(--sans); letter-spacing: .04em; padding: 5px 8px; white-space: nowrap; }
+.tlp.red { color: #ff2b2b; } .tlp.amber { color: #ffc000; } .tlp.green { color: #33ff00; } .tlp.clear { color: #fff; }
 
-nav.toc { position: sticky; top: 0; z-index: 2; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); }
-nav.toc .wrap { display: flex; gap: 18px; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; font-size: 13px; white-space: nowrap; }
-nav.toc a { color: var(--muted); }
+header.title { padding: 28px 0 8px; }
+.kicker { font: 600 11.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+h1 { font: 600 24px/1.25 var(--sans); margin: 0 0 6px; color: var(--head); overflow-wrap: anywhere; }
+.subtitle { color: var(--muted); margin: 0 0 18px; max-width: 760px; }
 
-section { padding: 34px 0 6px; }
-h2 { font: 600 22px/1.2 var(--serif); margin: 0 0 4px; }
-h2 + .lead { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+.notice { overflow-wrap: anywhere; border: 1px solid var(--bad); border-left-width: 4px; padding: 8px 12px; margin: 0 0 18px; }
+.notice strong { color: var(--bad); }
 
-.alert { border-left: 4px solid var(--bad); background: var(--sheet); padding: 10px 14px; margin: 18px 0 0; }
-.alert p { margin: 2px 0; }
-
-/* ---- at a glance ---- */
-.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-.tile { background: var(--sheet); border: 1px solid var(--rule); padding: 14px 16px; }
-.tile b { display: block; font: 600 28px/1.1 var(--serif); }
-.tile span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-.sevbar { display: flex; height: 12px; margin: 18px 0 8px; background: var(--rule); }
-.sevbar i { display: block; height: 100%; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
-.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
-.s-critical { --c: var(--critical); } .s-high { --c: var(--high); } .s-medium { --c: var(--medium); }
-.s-low { --c: var(--low); } .s-info { --c: var(--info); }
-.sevbar i, .dot { background: var(--c); }
-
-/* ---- findings ---- */
-.finding { background: var(--sheet); border: 1px solid var(--rule); border-left: 6px solid var(--c); margin: 0 0 16px; padding: 16px 18px 12px; break-inside: avoid; }
-.finding header { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; font-size: 12px; color: var(--muted); }
-.finding header .id { font: 700 13px var(--mono); color: var(--ink); }
-.pill { border: 1px solid currentColor; padding: 0 7px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
-.pill.sev { color: var(--c); }
-.finding h3 { font: 600 19px/1.3 var(--serif); margin: 6px 0 8px; overflow-wrap: anywhere; }
-.why { overflow-wrap: anywhere; margin: 0 0 12px; padding: 8px 12px; background: var(--accent-soft); border-radius: 2px; }
-.why b { font: 600 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 2px; }
-
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { text-align: left; font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 6px 8px; }
-td { border-bottom: 1px solid var(--rule); padding: 6px 8px; vertical-align: top; overflow-wrap: anywhere; }
-td.t { white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 12.5px; }
+th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+thead th { background: var(--head-bg); color: var(--head); font-weight: 600; font-size: 11.5px; }
+tbody tr:nth-child(even) td { background: var(--zebra); }
+table.kv th { width: 190px; background: var(--head-bg); color: var(--head); font-weight: 600; }
+td.t, th.t, td.h { white-space: nowrap; }
+td.t { font-family: var(--mono); font-size: 11.5px; }
+td.n, th.n { text-align: right; width: 1%; white-space: nowrap; }
 .scroll { overflow-x: auto; }
-.scroll > table { min-width: 620px; }
-.alert, .tl li, .lead, .cover h1 { overflow-wrap: anywhere; }
-.empty { color: var(--muted); font-style: italic; }
+.scroll > table { min-width: 640px; }
 
-/* ---- timeline ---- */
-.tl { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--rule); }
-.tl li { position: relative; padding: 4px 0 4px 18px; font-size: 13px; }
-.tl li::before { content: ""; position: absolute; left: -5px; top: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--rule); }
-.tl li.mark::before { background: var(--c); width: 12px; height: 12px; left: -7px; top: 9px; }
-.tl li.mark { font-weight: 600; }
-.tl time { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-right: 10px; }
-.tl .host { color: var(--muted); margin-right: 8px; }
+h2 { font: 600 16px/1.3 var(--sans); color: var(--head); margin: 30px 0 8px; padding-bottom: 5px;
+     border-bottom: 2px solid var(--head); }
+h3 { font: 600 14px/1.35 var(--sans); color: var(--ink); margin: 22px 0 6px; overflow-wrap: anywhere; }
+h3 .ref { font-family: var(--mono); font-size: 12.5px; color: var(--head); margin-right: 8px; }
+h4 { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 10px 0 4px; }
+p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.note { color: var(--muted); font-size: 12px; }
 
-.status-ran { color: var(--ok); } .status-bad { color: var(--bad); font-weight: 600; }
-.status-skip { color: var(--muted); }
-details summary { cursor: pointer; color: var(--accent); }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 var(--mono); background: var(--paper); padding: 8px; margin: 6px 0; }
-tr:target { background: var(--accent-soft); }
+.sev { white-space: nowrap; font-weight: 600; }
+.sev::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 0; background: var(--c); }
+.sev-critical { --c: var(--critical); color: var(--critical); } .sev-high { --c: var(--high); color: var(--high); }
+.sev-medium { --c: var(--medium); color: var(--medium); } .sev-low { --c: var(--low); color: var(--low); }
+.sev-info { --c: var(--info); color: var(--info); }
+.ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; }
 
-footer { margin: 40px 0 0; padding: 22px 0 40px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+.finding { border-top: 1px solid var(--line); padding-top: 2px; margin-top: 18px; break-inside: avoid-page; }
+.basis { overflow-wrap: anywhere; border-left: 3px solid var(--head); background: var(--head-bg); padding: 8px 12px; margin: 4px 0 10px; }
+tr.mark td { background: #fdf3f2 !important; font-weight: 600; }
+tr:target td { outline: 2px solid var(--head); outline-offset: -2px; }
+details summary { cursor: pointer; color: var(--head); font-size: 12px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 11.5px/1.45 var(--mono); background: var(--zebra);
+      border: 1px solid var(--line); padding: 6px 8px; margin: 4px 0; }
+ul { margin: 0 0 8px; padding-left: 20px; }
+.toc { columns: 2; column-gap: 32px; padding-left: 18px; margin: 0; }
+.toc li { margin: 1px 0; }
+.sign { margin-top: 26px; }
+.sign td { height: 40px; }
 
-@media (max-width: 640px) {
-  .cover .wrap { grid-template-columns: 1fr; gap: 16px; }
-  .stamp { justify-self: start; }
-  .cover h1 { font-size: 25px; }
+@media (max-width: 720px) {
+  .doc { margin: 0; border: 0; padding: 0 16px 24px; }
+  .toc { columns: 1; }
+  table.kv th { width: 120px; }
 }
 @media print {
-  :root { --paper: #fff; --sheet: #fff; }
-  nav.toc { display: none; }
-  section { break-inside: auto; }
-  a { color: inherit; }
-  details > *:not(summary) { display: block; }
+  @page { size: A4; margin: 16mm 14mm; }
+  html, body { background: #fff; }
+  .doc { margin: 0; border: 0; padding: 0; max-width: none; }
+  h2 { break-after: avoid-page; }
+  a { color: inherit; text-decoration: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 </style>
 </head>
 <body>
-{%- set s = r.summary %}
+<div class="doc">
 
-<header class="cover">
+<div class="tlpbar"><span>{{ r.report.id }} · {{ r.case.id }}</span><span class="tlp {{ tlp_class }}">{{ tlp }}</span></div>
+
+<header class="title">
+  <p class="kicker">Investigation report</p>
+  <h1>{{ r.case.name }}</h1>
+  {%- if r.case.description %}<p class="subtitle">{{ r.case.description }}</p>{% endif %}
+
   {%- if r.case.simulated or s.evidence_simulated %}
-  <div class="tape"><span>Simulated data — not a real incident</span></div>
+  <div class="notice"><strong>Simulated data.</strong> This report is built from simulated evidence for demonstration and testing. It does not describe a real incident.</div>
   {%- endif %}
-  <div class="wrap">
-    <div class="stamp"><small>Case</small><strong>{{ r.case.id }}</strong><small>{{ r.case.profile }}</small></div>
-    <div>
-      <h1>{{ r.case.name }}</h1>
-      {%- if r.case.description %}<p style="margin:0 0 8px">{{ r.case.description }}</p>{% endif %}
-      <div class="meta">
-        <span>Report generated {{ r.report.generated_at | t }} UTC</span>
-        <span>Case opened {{ r.case.created_at | t }} UTC</span>
-        <span>{{ r.report.generator }}</span>
-      </div>
-    </div>
-  </div>
+  {%- for p in problems %}
+  <div class="notice"><strong>Attention.</strong> {{ p }}</div>
+  {%- endfor %}
+
+  <table class="kv">
+    <tr><th>Report ID</th><td class="mono">{{ r.report.id }}</td></tr>
+    <tr><th>Case</th><td><span class="mono">{{ r.case.id }}</span> — {{ r.case.name }}</td></tr>
+    <tr><th>Case profile</th><td>{{ r.case.profile | upper }}</td></tr>
+    <tr><th>Case opened</th><td>{{ r.case.created_at | t }} UTC</td></tr>
+    <tr><th>Report date</th><td>{{ r.report.generated_at | t }} UTC</td></tr>
+    <tr><th>Systems examined</th><td>{{ s.hosts | join(', ') if s.hosts else '—' }}</td></tr>
+    <tr><th>Period of events</th><td>{% if s.first_event %}{{ s.first_event | t }} – {{ s.last_event | t }} UTC{% else %}—{% endif %}</td></tr>
+    <tr><th>Classification</th><td><span class="tlp {{ tlp_class }}">{{ tlp }}</span></td></tr>
+    <tr><th>Data</th><td>{{ 'SIMULATED' if r.case.simulated else 'Collected evidence' }}</td></tr>
+    <tr><th>Prepared with</th><td>{{ r.report.generator }} (report format {{ r.report.format }} v{{ r.report.version }})</td></tr>
+  </table>
+
+  <h4>Contents</h4>
+  <ol class="toc">
+    <li><a href="#s1">Executive summary</a></li>
+    <li><a href="#s2">Scope and method</a></li>
+    <li><a href="#s3">Findings</a></li>
+    <li><a href="#s4">Timeline of events</a></li>
+    <li><a href="#s5">Indicators and authorized scope</a></li>
+    <li><a href="#s6">Evidence integrity</a></li>
+    <li><a href="#s7">Coverage and limitations</a></li>
+    <li><a href="#appA">Appendix A — Evidence register</a></li>
+    <li><a href="#appB">Appendix B — Rules and terms</a></li>
+  </ol>
 </header>
 
-<nav class="toc"><div class="wrap">
-  <a href="#glance">At a glance</a><a href="#findings">Findings ({{ s.findings_total }})</a>
-  <a href="#timeline">Timeline</a><a href="#coverage">Coverage</a><a href="#integrity">Integrity</a>
-  <a href="#indicators">Indicators &amp; scope</a><a href="#evidence">Evidence ({{ s.evidence_total }})</a>
-</div></nav>
-
-<main class="wrap">
-  {%- if problems %}
-  <div class="alert">{% for p in problems %}<p><strong>Attention:</strong> {{ p }}</p>{% endfor %}</div>
-  {%- endif %}
-
-  <section id="glance">
-    <h2>At a glance</h2>
-    <p class="lead">All times are UTC. Findings are leads for the analyst, each with the reason and the evidence behind it.</p>
-    <div class="glance">
-      <div class="tile"><b>{{ s.findings_total }}</b><span>Findings</span></div>
-      <div class="tile"><b>{{ s.evidence_total }}</b><span>Evidence records</span></div>
-      <div class="tile"><b>{{ s.hosts | length }}</b><span>Host{{ '' if s.hosts|length == 1 else 's' }}{% if s.hosts %}: {{ s.hosts | join(', ') }}{% endif %}</span></div>
-      <div class="tile"><b>{{ s.integrity.verified }}/{{ s.integrity.checked }}</b><span>Raw files verified</span></div>
-    </div>
-    {%- if s.findings_total %}
-    <div class="sevbar" role="img" aria-label="Findings by severity">
-      {%- for sev, n in s.findings_by_severity.items() if n %}<i class="s-{{ sev }}" style="width:{{ (100 * n / s.findings_total) | round(2) }}%" title="{{ sev }}: {{ n }}"></i>{% endfor %}
-    </div>
-    <div class="legend">{% for sev, n in s.findings_by_severity.items() %}<span class="s-{{ sev }}"><span class="dot"></span>{{ sev }} {{ n }}</span>{% endfor %}</div>
-    {%- endif %}
-    {%- if s.first_event %}
-    <p class="lead" style="margin-top:14px">Events from {{ s.first_event | t }} to {{ s.last_event | t }}.</p>
-    {%- endif %}
-  </section>
-
-  <section id="findings">
-    <h2>Findings</h2>
-    <p class="lead">Ordered by severity. <em>Confidence</em> says how sure the link is; <em>severity</em> says how serious it would be.</p>
-    {%- for f in r.findings %}
-    <article class="finding s-{{ f.severity }}" id="{{ f.id }}">
-      <header>
-        <span class="id">{{ f.id }}</span>
-        <span class="pill sev">{{ f.severity }}</span>
-        <span>confidence {{ f.confidence }}</span><span>·</span>
-        <span>{{ f.category }}</span><span>·</span>
-        <span>rule {{ f.rule_id or '—' }}</span>
-        {%- if f.first_seen %}<span>·</span><span>{{ f.first_seen | t }}{% if f.last_seen != f.first_seen %} → {{ f.last_seen | t }}{% endif %}</span>{% endif %}
-      </header>
-      <h3>{{ f.title }}</h3>
-      {%- if f.description %}<p style="margin:0 0 8px">{{ f.description }}</p>{% endif %}
-      <div class="why"><b>Why</b>{{ f.rationale }}</div>
-      <div class="scroll"><table>
-        <tr><th>Evidence</th><th>Time</th><th>Host</th><th>Source</th><th>Summary</th></tr>
-        {%- for eid in f.evidence_ids %}{% set e = ev_by_id.get(eid) %}
-        <tr><td class="t"><a href="#{{ eid }}">{{ eid }}</a></td><td class="t">{{ (e.event_time | t) if e and e.event_time else '—' }}</td>
-            <td>{{ e.host if e else '' }}</td><td>{{ e.source_module ~ ' / ' ~ e.source_tool if e else '' }}</td><td>{{ e.summary if e else 'missing' }}</td></tr>
-        {%- endfor %}
-      </table></div>
-    </article>
-    {%- else %}
-    <p class="empty">No findings. Either nothing matched a rule, or <code>atad correlate</code> has not been run on this case.</p>
+<section id="s1">
+  <h2>1. Executive summary</h2>
+  {%- for para in summary_text %}<p>{{ para }}</p>{% endfor %}
+  <table>
+    <thead><tr>{% for sev in severities %}<th class="n">{{ sev | capitalize }}</th>{% endfor %}<th class="n">Total</th></tr></thead>
+    <tbody><tr>{% for sev in severities %}<td class="n">{{ s.findings_by_severity[sev] }}</td>{% endfor %}<td class="n"><strong>{{ s.findings_total }}</strong></td></tr></tbody>
+  </table>
+  {%- set key = r.findings | rejectattr('category', 'equalto', 'correlated') | list %}
+  {%- if key %}
+  <h4>Key findings</h4>
+  <div class="scroll"><table>
+    <thead><tr><th>ID</th><th>Severity</th><th>Finding</th><th>System</th><th class="t">First seen (UTC)</th></tr></thead>
+    <tbody>
+    {%- for f in key[:10] %}
+      <tr><td class="t"><a href="#{{ f.id }}">{{ f.id }}</a></td><td><span class="sev sev-{{ f.severity }}">{{ f.severity | capitalize }}</span></td>
+          <td>{{ f.title }}</td><td class="h">{{ f.hosts | join(', ') }}</td><td class="t">{{ (f.first_seen | t) if f.first_seen else '—' }}</td></tr>
     {%- endfor %}
-  </section>
+    </tbody>
+  </table></div>
+  {%- if key | length > 10 %}<p class="note">{{ key | length - 10 }} further finding(s) in Section 3.</p>{% endif %}
+  {%- endif %}
+</section>
 
-  <section id="timeline">
-    <h2>Timeline</h2>
-    <p class="lead">Every evidence record with an event time, and each finding at the time of its earliest evidence.
-      {%- if r.timeline | length > limits.timeline %} Showing the first {{ limits.timeline }} of {{ r.timeline | length }}; the full timeline is in the JSON report and <code>atad export timeline</code>.{% endif %}</p>
-    {%- if r.timeline %}
-    <ol class="tl">
-      {%- for t in r.timeline[:limits.timeline] %}
-      {%- set fs = findings_by_id.get(t.finding_id) if t.finding_id else none %}
-      <li{% if t.finding_id %} class="mark s-{{ fs.severity if fs else 'info' }}"{% endif %}><time>{{ t.time | t }}</time><span class="host">{{ t.host }}</span>
-        <a href="#{{ t.finding_id or t.evidence_id }}" class="mono">{{ t.finding_id or t.evidence_id }}</a>
-        {{ t.description }}</li>
-      {%- endfor %}
-    </ol>
-    {%- else %}<p class="empty">No evidence with an event time.</p>{% endif %}
-  </section>
+<section id="s2">
+  <h2>2. Scope and method</h2>
+  <p>Evidence was collected and normalized by ATAD. Each tool run is recorded with its exact command,
+     version, status and a SHA-256 hash of its raw output (Sections 6 and 7). Findings are produced by the
+     documented correlation rules in Appendix B; each states its basis and the evidence it rests on.
+     All times are in UTC.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Source module</th><th class="n">Evidence records</th></tr></thead>
+    <tbody>
+    {%- for mod, n in s.evidence_by_module | dictsort %}<tr><td>{{ mod }}</td><td class="n">{{ n }}</td></tr>{% endfor %}
+    <tr><td><strong>Total</strong></td><td class="n"><strong>{{ s.evidence_total }}</strong></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><strong>Severity</strong> is how serious a finding would be if confirmed. <strong>Confidence</strong> is how strongly the evidence supports it.</p>
+</section>
 
-  <section id="coverage">
-    <h2>Coverage</h2>
-    <p class="lead">What ran and what did not. A check that did not run cannot find anything — that is not the same as "nothing found".</p>
-    {%- if r.coverage %}
+<section id="s3">
+  <h2>3. Findings</h2>
+  {%- for f in r.findings %}
+  <div class="finding" id="{{ f.id }}">
+    <h3><span class="ref">3.{{ loop.index }} · {{ f.id }}</span>{{ f.title }}</h3>
+    <table class="kv">
+      <tr><th>Severity</th><td><span class="sev sev-{{ f.severity }}">{{ f.severity | capitalize }}</span></td></tr>
+      <tr><th>Confidence</th><td>{{ f.confidence | capitalize }}</td></tr>
+      <tr><th>Category</th><td>{{ f.category | capitalize }}</td></tr>
+      <tr><th>Rule</th><td>{{ f.rule_id or '—' }}{% if f.rule_id in rules %} — {{ rules[f.rule_id] }}{% endif %}</td></tr>
+      <tr><th>System(s)</th><td>{{ f.hosts | join(', ') or '—' }}</td></tr>
+      <tr><th>Period (UTC)</th><td>{% if f.first_seen %}{{ f.first_seen | t }}{% if f.last_seen != f.first_seen %} – {{ f.last_seen | t }}{% endif %}{% else %}—{% endif %}</td></tr>
+      {%- if f.description %}<tr><th>Indicator note</th><td>{{ f.description }}</td></tr>{% endif %}
+    </table>
+    <h4>Basis</h4>
+    <div class="basis">{{ f.rationale }}</div>
+    <h4>Supporting evidence ({{ f.evidence_ids | length }})</h4>
     <div class="scroll"><table>
-      <tr><th>#</th><th>Module</th><th>Tool</th><th>Target / input</th><th>Started</th><th>Status</th><th>Admin</th><th>Note</th></tr>
-      {%- for c in r.coverage %}
-      <tr><td class="t">{{ c.id }}</td><td>{{ c.module }}</td><td>{{ c.tool }}{% if c.tool_version %} <span class="mono">{{ c.tool_version }}</span>{% endif %}</td>
-          <td>{{ c.target or ((c.command | last) if c.command else '') }}</td><td class="t">{{ c.started_at | t }}</td>
-          <td class="{{ 'status-ran' if c.status == 'success' else ('status-skip' if c.status == 'skipped' else 'status-bad') }}">{{ c.label }}</td>
-          <td>{{ 'yes' if c.elevated else ('no' if c.elevated is not none else '—') }}</td><td>{{ c.error or '' }}</td></tr>
+      <thead><tr><th>Evidence</th><th class="t">Time (UTC)</th><th>System</th><th>Source</th><th>Record</th></tr></thead>
+      <tbody>
+      {%- for eid in f.evidence_ids %}{% set e = ev_by_id.get(eid) %}
+        <tr><td class="t"><a href="#{{ eid }}">{{ eid }}</a></td><td class="t">{{ (e.event_time | t) if e and e.event_time else '—' }}</td>
+            <td class="h">{{ e.host if e else '' }}</td><td>{{ e.source_module ~ ' / ' ~ e.source_tool if e else '' }}</td><td>{{ e.summary if e else 'missing' }}</td></tr>
       {%- endfor %}
+      </tbody>
     </table></div>
-    {%- else %}<p class="empty">No collection has been run in this case.</p>{% endif %}
-  </section>
+  </div>
+  {%- else %}
+  <p>No findings. Either no rule matched the evidence, or correlation (<code>atad correlate</code>) has not been run for this case.</p>
+  {%- endfor %}
+</section>
 
-  <section id="integrity">
-    <h2>Integrity</h2>
-    <p class="lead">Every raw file was hashed (SHA-256) when collected and hashed again for this report.</p>
-    {%- if r.integrity %}
-    <div class="scroll"><table>
-      <tr><th>Raw file</th><th>SHA-256 at collection</th><th>Now</th></tr>
-      {%- for i in r.integrity %}
+<section id="s4">
+  <h2>4. Timeline of events</h2>
+  <p>Every evidence record with an event time, in order. Rows in bold mark a finding at the time of its earliest evidence.
+    {%- if r.timeline | length > limits.timeline %} The first {{ limits.timeline }} of {{ r.timeline | length }} entries are shown; the complete timeline is in the JSON report and <code>atad export timeline</code>.{% endif %}</p>
+  {%- if r.timeline %}
+  <div class="scroll"><table>
+    <thead><tr><th class="t">Time (UTC)</th><th>System</th><th>Ref.</th><th>Event</th></tr></thead>
+    <tbody>
+    {%- for t in r.timeline[:limits.timeline] %}
+      <tr{% if t.finding_id %} class="mark"{% endif %}><td class="t">{{ t.time | t }}</td><td class="h">{{ t.host }}</td>
+        <td class="t"><a href="#{{ t.finding_id or t.evidence_id }}">{{ t.finding_id or t.evidence_id }}</a></td><td>{{ t.description }}</td></tr>
+    {%- endfor %}
+    </tbody>
+  </table></div>
+  {%- else %}<p>No evidence with an event time.</p>{% endif %}
+</section>
+
+<section id="s5">
+  <h2>5. Indicators and authorized scope</h2>
+  <h4>Indicators of compromise loaded</h4>
+  {%- if r.iocs %}
+  <div class="scroll"><table>
+    <thead><tr><th>Type</th><th>Value</th><th>Confidence</th><th>List</th><th>Note</th></tr></thead>
+    <tbody>
+    {%- for i in r.iocs[:limits.iocs] %}<tr><td>{{ i.type }}</td><td class="mono">{{ i.value }}</td><td>{{ i.confidence | capitalize }}</td><td>{{ i.source }}</td><td>{{ i.description }}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {%- if r.iocs | length > limits.iocs %}<p class="note">{{ r.iocs | length - limits.iocs }} more in the JSON report.</p>{% endif %}
+  {%- else %}<p>No indicator lists were loaded.</p>{% endif %}
+  <h4>Authorized network scope</h4>
+  {%- if r.scope %}
+  <div class="scroll"><table>
+    <thead><tr><th>Target</th><th>Kind</th><th>Public</th><th class="t">Added (UTC)</th><th>Note</th></tr></thead>
+    <tbody>
+    {%- for t in r.scope %}<tr><td class="mono">{{ t.value }}</td><td>{{ t.kind }}</td><td>{{ 'Yes' if t.public else 'No' }}</td><td class="t">{{ t.added_at | t }}</td><td>{{ t.note }}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {%- else %}<p>No network targets were authorized in this case.</p>{% endif %}
+</section>
+
+<section id="s6">
+  <h2>6. Evidence integrity</h2>
+  <p>Every raw file was hashed with SHA-256 when it was collected and stored read-only in the case folder.
+     The files were hashed again when this report was produced.</p>
+  {%- if r.integrity %}
+  <div class="scroll"><table>
+    <thead><tr><th>Raw file</th><th>SHA-256 recorded at collection</th><th>Result</th></tr></thead>
+    <tbody>
+    {%- for i in r.integrity %}
       <tr><td class="mono">{{ i.raw_ref }}</td><td class="mono">{{ i.expected_sha256 }}</td>
-          <td class="{{ 'status-ran' if i.status == 'verified' else 'status-bad' }}">{{ i.status }}{% if i.status == 'changed' %}<br><span class="mono">{{ i.actual_sha256 }}</span>{% endif %}</td></tr>
-      {%- endfor %}
-    </table></div>
-    {%- else %}<p class="empty">No raw files recorded.</p>{% endif %}
-  </section>
+          <td class="{{ 'ok' if i.status == 'verified' else 'bad' }}">{{ i.status | capitalize }}{% if i.status == 'changed' %}<br><span class="mono">now {{ i.actual_sha256 }}</span>{% endif %}</td></tr>
+    {%- endfor %}
+    </tbody>
+  </table></div>
+  {%- else %}<p>No raw files are recorded for this case.</p>{% endif %}
+</section>
 
-  <section id="indicators">
-    <h2>Indicators &amp; scope</h2>
-    <p class="lead">Indicator lists loaded into the case, and the network targets the analyst was authorized to check.</p>
-    {%- if r.iocs %}
-    <div class="scroll"><table>
-      <tr><th>Type</th><th>Value</th><th>Confidence</th><th>List</th><th>Note</th></tr>
-      {%- for i in r.iocs[:limits.iocs] %}<tr><td>{{ i.type }}</td><td class="mono">{{ i.value }}</td><td>{{ i.confidence }}</td><td>{{ i.source }}</td><td>{{ i.description }}</td></tr>{% endfor %}
-    </table></div>
-    {%- if r.iocs | length > limits.iocs %}<p class="empty">… {{ r.iocs | length - limits.iocs }} more in the JSON report.</p>{% endif %}
-    {%- else %}<p class="empty">No indicator lists loaded.</p>{% endif %}
-    {%- if r.scope %}
-    <div class="scroll" style="margin-top:16px"><table>
-      <tr><th>Authorized target</th><th>Kind</th><th>Public</th><th>Added</th><th>Note</th></tr>
-      {%- for t in r.scope %}<tr><td class="mono">{{ t.value }}</td><td>{{ t.kind }}</td><td>{{ 'yes' if t.public else 'no' }}</td><td class="t">{{ t.added_at | t }}</td><td>{{ t.note }}</td></tr>{% endfor %}
-    </table></div>
-    {%- endif %}
-  </section>
+<section id="s7">
+  <h2>7. Coverage and limitations</h2>
+  <p>Every check that was requested, including those that did not run. A check that did not run cannot
+     produce a finding; the absence of findings from it is not evidence that nothing happened.</p>
+  {%- if r.coverage %}
+  <div class="scroll"><table>
+    <thead><tr><th class="n">#</th><th>Module</th><th>Tool (version)</th><th>Input / target</th><th class="t">Started (UTC)</th><th>Result</th><th>Admin</th><th>Note</th></tr></thead>
+    <tbody>
+    {%- for c in r.coverage %}
+      <tr><td class="n">{{ c.id }}</td><td>{{ c.module }}</td><td>{{ c.tool }}{% if c.tool_version %} ({{ c.tool_version }}){% endif %}</td>
+          <td>{{ c.target or ((c.command | last) if c.command else '') }}</td><td class="t">{{ c.started_at | t }}</td>
+          <td class="{{ 'ok' if c.status == 'success' else ('muted' if c.status == 'skipped' else 'bad') }}">{{ c.label | capitalize }}</td>
+          <td>{{ 'Yes' if c.elevated else ('No' if c.elevated is not none else '—') }}</td><td>{{ c.error or '' }}</td></tr>
+    {%- endfor %}
+    </tbody>
+  </table></div>
+  {%- else %}<p>No collection was run in this case.</p>{% endif %}
+  <h4>Limitations</h4>
+  <ul>
+    <li>Findings come from documented rules and indicator lists. Activity that matches no rule is not reported as a finding, but its evidence remains in Appendix A.</li>
+    <li>Shared IP addresses, domains and paths can link unrelated activity (NAT, DHCP, common programs); the confidence of each finding reflects this.</li>
+    <li>Times are as recorded by each source and converted to UTC; clock differences between systems are not corrected.</li>
+    {%- if r.case.simulated %}<li>All evidence in this case is simulated.</li>{% endif %}
+  </ul>
+</section>
 
-  <section id="evidence">
-    <h2>Evidence</h2>
-    <p class="lead">Normalized records. Each points to the raw file it came from.
-      {%- if r.evidence | length > limits.evidence %} Showing the first {{ limits.evidence }} of {{ r.evidence | length }}; all are in the JSON report.{% endif %}</p>
-    {%- if r.evidence %}
-    <div class="scroll"><table>
-      <tr><th>ID</th><th>Time</th><th>Host</th><th>Source</th><th>Summary</th></tr>
-      {%- for e in r.evidence[:limits.evidence] %}
-      <tr id="{{ e.id }}"><td class="t">{{ e.id }}</td><td class="t">{{ (e.event_time | t) if e.event_time else '—' }}</td><td>{{ e.host }}{% if e.host_declared %} <span title="declared by the analyst">*</span>{% endif %}</td>
-        <td>{{ e.source_module }} / {{ e.source_tool }}<br><span class="mono">{{ e.collection_mode }}</span></td>
-        <td>{{ e.summary }}{% if e.simulated %} <span class="pill">simulated</span>{% endif %}
-          <details><summary>details</summary>
-            {%- if e.observables %}<p style="margin:4px 0">{% for o in e.observables %}<code>{{ o.type }}={{ o.value }}</code>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
-            <p style="margin:4px 0">Raw: <code>{{ e.raw_ref or '—' }}</code>{% if e.raw_sha256 %} · SHA-256 <code>{{ e.raw_sha256 }}</code>{% endif %} · collected {{ e.collected_at | t }}</p>
+<section id="appA">
+  <h2>Appendix A — Evidence register</h2>
+  <p>Normalized evidence records. Each refers to the raw file it was read from (Section 6). Systems marked * were named by the analyst for imported evidence.
+    {%- if r.evidence | length > limits.evidence %} The first {{ limits.evidence }} of {{ r.evidence | length }} records are shown; all are in the JSON report.{% endif %}</p>
+  {%- if r.evidence %}
+  <div class="scroll"><table>
+    <thead><tr><th>ID</th><th class="t">Time (UTC)</th><th>System</th><th>Source</th><th>Record</th></tr></thead>
+    <tbody>
+    {%- for e in r.evidence[:limits.evidence] %}
+      <tr id="{{ e.id }}"><td class="t">{{ e.id }}</td><td class="t">{{ (e.event_time | t) if e.event_time else '—' }}</td>
+        <td class="h">{{ e.host }}{% if e.host_declared %}*{% endif %}</td>
+        <td>{{ e.source_module }} / {{ e.source_tool }}<br><span class="note">{{ e.collection_mode }}</span></td>
+        <td>{{ e.summary }}
+          <details><summary>Details</summary>
+            {%- if e.observables %}<p class="note">Observables: {% for o in e.observables %}<code>{{ o.type }}={{ o.value }}</code>{{ '; ' if not loop.last }}{% endfor %}</p>{% endif %}
+            <p class="note">Raw: <code>{{ e.raw_ref or '—' }}</code>{% if e.raw_sha256 %} · SHA-256 <code>{{ e.raw_sha256 }}</code>{% endif %} · collected {{ e.collected_at | t }} UTC</p>
             <pre>{{ e.data | tojson(indent=2) }}</pre>
           </details></td></tr>
-      {%- endfor %}
-    </table></div>
-    <p class="empty">* host declared by the analyst (imported evidence).</p>
-    {%- else %}<p class="empty">No evidence collected.</p>{% endif %}
-  </section>
+    {%- endfor %}
+    </tbody>
+  </table></div>
+  {%- else %}<p>No evidence was collected.</p>{% endif %}
+</section>
 
-  <footer>
-    {{ r.report.generator }} · report format {{ r.report.format }} v{{ r.report.version }} ·
-    ATAD (عَتاد) by Hoor Fawaz · ATAD Source-Available License 1.0.
-    Findings are produced by documented rules and are leads, not conclusions; confirm them before acting.
-  </footer>
-</main>
+<section id="appB">
+  <h2>Appendix B — Rules and terms</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Rule</th><th>Meaning</th><th class="n">Findings</th></tr></thead>
+    <tbody>
+    {%- for rid, desc in rules.items() %}<tr><td class="t">{{ rid }}</td><td>{{ desc }}</td><td class="n">{{ s.findings_by_rule.get(rid, 0) }}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <table class="kv">
+    <tr><th>Suspicious</th><td>Evidence that matches a known pattern of attack.</td></tr>
+    <tr><th>Correlated</th><td>Records from different events or sources linked by a shared indicator.</td></tr>
+    <tr><th>Hypothesis</th><td>A possible explanation that needs further investigation.</td></tr>
+    <tr><th>{{ tlp }}</th><td>Traffic Light Protocol 2.0 (FIRST): limits on who may receive this report.</td></tr>
+  </table>
+
+  <table class="sign">
+    <thead><tr><th>Reviewed by (name)</th><th>Signature</th><th>Date</th></tr></thead>
+    <tbody><tr><td></td><td></td><td></td></tr></tbody>
+  </table>
+</section>
+
+<div class="tlpbar bottom"><span>{{ r.report.id }} · {{ r.report.generator }} · ATAD (عَتاد) by Hoor Fawaz · ATAD Source-Available License 1.0</span><span class="tlp {{ tlp_class }}">{{ tlp }}</span></div>
+</div>
 </body>
 </html>

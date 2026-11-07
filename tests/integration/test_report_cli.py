@@ -43,6 +43,12 @@ def test_report_and_exports(tmp_path, monkeypatch):
     assert [p.suffix for p in paths] == [".html", ".json"] and all(p.is_file() for p in paths)
     assert "FND-" in paths[0].read_text(encoding="utf-8")
 
+    r = _run(home, "report", "-c", "CASE-001", "--format", "html", "--tlp", "TLP:RED")
+    assert r.exit_code == 0, r.output
+    html = Path([x for x in r.output.split() if x.endswith(".html")][-1]).read_text(encoding="utf-8")
+    assert html.count("TLP:RED") >= 2 and "TLP:AMBER" not in html
+    assert _run(home, "report", "-c", "CASE-001", "--tlp", "blue").exit_code == 2
+
     r = _run(home, "report", "-c", "CASE-001", "--format", "pdf")
     assert r.exit_code == 2 and "--format" in r.output
 
@@ -62,4 +68,4 @@ def test_report_flags_tampered_evidence(tmp_path, monkeypatch):
     assert r.exit_code == 4
     assert "changed after collection" in r.output
     html = next((home / "CASE-001" / "reports").glob("*.html")).read_text(encoding="utf-8")
-    assert "changed after collection" in html and ">changed<" in html
+    assert "changed after collection" in html and ">Changed<" in html

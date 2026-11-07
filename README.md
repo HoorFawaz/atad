@@ -85,7 +85,7 @@ atad timeline --case CASE-001 --findings-only
 
 # Reports and exports
 atad report --case CASE-001                        # HTML + JSON into the case's reports folder
-atad report --case CASE-001 --format html
+atad report --case CASE-001 --format html --tlp red   # TLP 2.0 label: clear, green, amber, amber+strict, red
 atad export timeline --case CASE-001               # CSV + JSONL (Timesketch, Timeline Explorer, Elastic)
 atad export case --case CASE-001                   # whole case as one zip with SHA256SUMS.txt
 ```

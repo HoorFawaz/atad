@@ -25,6 +25,25 @@ REPORT_FORMAT = "atad-report"
 REPORT_VERSION = 1
 
 SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
+
+# Traffic Light Protocol 2.0 (FIRST) — who may receive the report.
+TLP_LEVELS = {
+    "clear": "TLP:CLEAR", "green": "TLP:GREEN", "amber": "TLP:AMBER",
+    "amber+strict": "TLP:AMBER+STRICT", "red": "TLP:RED",
+}
+DEFAULT_TLP = "amber"
+
+RULE_DESCRIPTIONS = {
+    "IOC": "Evidence contains an indicator from a loaded IOC list",
+    "YARA": "A file matched a YARA rule",
+    "S1": "PowerShell started with an encoded command",
+    "S2": "A file whose real type does not match its name",
+    "R1": "Repeated failed logons from one source, with or without a later success",
+    "R2": "A process connected to a known indicator",
+    "R3": "A file that matched YARA was executed",
+    "R4": "A finding's key indicator also seen in another source or event type",
+    "R5": "Several suspicious findings close in time on one host (hypothesis)",
+}
 STATUS_LABEL = {
     "success": "ran",
     "failed": "failed",
@@ -120,8 +139,11 @@ def _execution_dict(ex) -> dict:
     }
 
 
-def build_report_data(oc: OpenCase, generated_at: datetime | None = None) -> dict:
+def build_report_data(oc: OpenCase, generated_at: datetime | None = None,
+                      tlp: str = DEFAULT_TLP) -> dict:
     generated_at = generated_at or utc_now()
+    if tlp not in TLP_LEVELS:
+        raise ValueError(f"unknown TLP level {tlp!r}")
     repo, case = oc.repo, oc.case
     evidence = repo.list_evidence()
     findings = repo.list_findings()
@@ -139,9 +161,10 @@ def build_report_data(oc: OpenCase, generated_at: datetime | None = None) -> dic
     timeline = build_timeline(view, findings)
     return {
         "report": {
+            "id": f"{case.id}-R{file_stamp(generated_at)}",
             "format": REPORT_FORMAT, "version": REPORT_VERSION,
             "generated_at": iso(generated_at), "generator": f"ATAD {__version__}",
-            "times": "UTC",
+            "times": "UTC", "classification": TLP_LEVELS[tlp],
         },
         "case": {
             "id": case.id, "name": case.name, "profile": case.profile.value,
@@ -159,6 +182,7 @@ def build_report_data(oc: OpenCase, generated_at: datetime | None = None) -> dic
             "findings_total": len(findings),
             "findings_by_severity": {s: sev.get(s, 0) for s in SEVERITY_ORDER},
             "findings_by_rule": dict(Counter(f.rule_id or "-" for f in findings)),
+            "findings_by_category": dict(Counter(f.category.value for f in findings)),
             "executions_by_status": dict(ex_status),
             "integrity": {"checked": len(integrity), **{k: integ.get(k, 0) for k in
                                                          ("verified", "changed", "missing",

@@ -12,6 +12,7 @@ import typer
 
 from atad.cli.context import handle_errors, state
 from atad.cli.correlate import SEV_COLOR
+from atad.cli.report import check_tlp
 from atad.core.exceptions import ValidationError
 from atad.core.platform import local_hostname
 from atad.correlation.config import load_config
@@ -48,10 +49,12 @@ def triage(
     allow_public: bool = typer.Option(False, "--allow-public",
                                       help="Allow contacting a public --target (written authorization only)."),
     config: Optional[Path] = typer.Option(None, "--config", help="Correlation thresholds (YAML)."),
+    tlp: str = typer.Option("amber", "--tlp", help="Report classification (TLP 2.0): clear, green, amber, amber+strict, red."),
 ) -> None:
     """First look at THIS machine: run the profile's modules, correlate, report."""
     # Everything is validated before anything is created or run.
     sel = select_checks(MODULES, only, skip)
+    tlp = check_tlp(tlp)
     src = validate_evidence_path(path) if path else None
     ioc_path = validate_evidence_path(iocs) if iocs else None
     cfg = load_config(config)
@@ -75,7 +78,7 @@ def triage(
     typer.secho(f"{oc.case.id} — triage, profile {prof.name}", bold=True)
     r = run_triage(oc, prof, sel.selected, path=src, target=target, iocs=ioc_path,
                    ioc_confidence=ioc_confidence, rules=rules, hours=hours,
-                   allow_public=allow_public, correlation=cfg)
+                   allow_public=allow_public, correlation=cfg, tlp=tlp)
 
     typer.echo()
     typer.secho("  Steps", bold=True)

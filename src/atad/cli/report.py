@@ -9,7 +9,7 @@ import typer
 
 from atad.cli.context import handle_errors, state
 from atad.core.exceptions import ValidationError
-from atad.reports.builder import report_problems
+from atad.reports.builder import DEFAULT_TLP, TLP_LEVELS, report_problems
 from atad.reports.exports import TIMELINE_FORMATS, export_case, export_timeline
 from atad.reports.writer import FORMATS, write_reports
 
@@ -26,14 +26,24 @@ def _formats(value: str, allowed: tuple[str, ...]) -> tuple[str, ...]:
     return chosen
 
 
+def check_tlp(value: str) -> str:
+    v = value.strip().lower().removeprefix("tlp:")
+    if v not in TLP_LEVELS:
+        raise ValidationError(f"--tlp must be one of: {', '.join(TLP_LEVELS)}")
+    return v
+
+
 @handle_errors
 def report(
     case: str = CaseOpt,
     fmt: str = typer.Option("all", "--format", "-f", help="html, json or all."),
+    tlp: str = typer.Option(DEFAULT_TLP, "--tlp",
+                            help=f"Classification (TLP 2.0): {', '.join(TLP_LEVELS)}."),
 ) -> None:
     """Write the case report (HTML for people, JSON for tools) into reports/."""
+    tlp = check_tlp(tlp)
     oc = state.manager().open_case(case)
-    written, data = write_reports(oc, _formats(fmt, FORMATS))
+    written, data = write_reports(oc, _formats(fmt, FORMATS), tlp=tlp)
     s = data["summary"]
     typer.secho(f"{oc.case.id} — report", bold=True)
     typer.echo(f"  findings: {s['findings_total']}   evidence: {s['evidence_total']}   "

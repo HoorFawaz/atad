@@ -61,7 +61,7 @@ def demo() -> None:
         typer.secho(f"    not testable here: {e['title']} (needs {e['needs']})",
                     fg=typer.colors.YELLOW)
 
-    written, _ = write_reports(oc)
+    written, _ = write_reports(oc, tlp="clear")   # simulated data: free to share
     exports, _ = export_timeline(oc)
     metrics_path = oc.path / "exports" / f"{oc.case.id}_demo_metrics_{file_stamp(utc_now())}.json"
     metrics_path.write_text(json.dumps({"case": oc.case.id, "simulated": True,

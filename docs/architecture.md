@@ -273,10 +273,19 @@ checks precision and recall on it.
 
 | Output | Where | For | Notes |
 |---|---|---|---|
-| HTML report | `reports/CASE-x_report_<UTC>.html` | people | One self-contained file (no internet needed), light/dark, prints cleanly. Every finding links to its evidence |
+| HTML report | `reports/CASE-x_report_<UTC>.html` | people | One self-contained file (no internet needed) laid out as a formal investigation report; prints to A4. Every finding links to its evidence |
 | JSON report | `reports/CASE-x_report_<UTC>.json` | tools | Same data as the HTML (`format: atad-report`, `version: 1`), all evidence included |
 | Timeline CSV / JSONL | `exports/CASE-x_timeline_<UTC>.csv/.jsonl` | Timeline Explorer, Timesketch, Elastic | CSV cells that start with `= + - @` get a leading `'` so spreadsheets do not run them as formulas |
 | Case zip | `exports/CASE-x_case_<UTC>.zip` | handing a case to another analyst | Database snapshot (SQLite backup API), raw files, logs, reports and `SHA256SUMS.txt` |
+
+HTML report structure (after common forensic report practice, SWGDE 18-Q-002):
+document control table (report ID, case, dates, systems, period, classification),
+1 executive summary, 2 scope and method, 3 findings (severity, confidence, rule,
+basis, supporting evidence), 4 timeline, 5 indicators and authorized scope,
+6 evidence integrity, 7 coverage and limitations, appendix A evidence register,
+appendix B rules and terms, and a reviewer sign-off block. The classification uses
+the FIRST Traffic Light Protocol 2.0 (`--tlp clear|green|amber|amber+strict|red`,
+default `amber`; the demo uses `clear`) and is shown at the top and bottom.
 
 Rules every report follows:
 - Each output is a new read-only file; reports are recorded in the `reports` table with their SHA-256.
