@@ -55,8 +55,14 @@ def demo() -> None:
     typer.echo(f"    decoys    {len(b.scenario['decoys'])} look-alike benign activities mixed in")
     for e in m.fn:
         typer.secho(f"    missed: {e['rule']} {e['title']}", fg=typer.colors.RED)
+    known = {(k["rule"], k["title"]): k["why"] for k in b.scenario.get("known_false_positives", [])}
     for f in m.fp:
-        typer.secho(f"    not expected: {f.id} {f.rule_id} {f.title}", fg=typer.colors.RED)
+        why = known.get((f.rule_id, f.title))
+        if why:
+            typer.secho(f"    known false positive: {f.id} {f.rule_id} {f.title}", fg=typer.colors.YELLOW)
+            typer.echo(f"      {why}")
+        else:
+            typer.secho(f"    not expected: {f.id} {f.rule_id} {f.title}", fg=typer.colors.RED)
     for e in m.not_testable:
         typer.secho(f"    not testable here: {e['title']} (needs {e['needs']})",
                     fg=typer.colors.YELLOW)

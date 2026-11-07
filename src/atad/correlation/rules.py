@@ -13,6 +13,7 @@ rationale that says, in plain words, why that evidence was linked.
 | YARA | A file that matched a YARA rule                        | suspicious  |
 | S1   | PowerShell started with an encoded command             | suspicious  |
 | S2   | A file whose real type does not match its name         | suspicious  |
+| S3   | Auto-start entry that runs from a user-writable folder | suspicious  |
 | R1   | Many failed logons from one source (with or without a success) | suspicious |
 | R2   | A process that connected to a known indicator          | suspicious  |
 | R3   | A file that matched YARA was also run as a process     | suspicious  |
@@ -43,7 +44,7 @@ from atad.evidence.models import (
 from atad.modules.host.collector import ENCODED_POWERSHELL
 from atad.modules.ioc.parser import url_host
 
-BASE_RULES = ("IOC", "YARA", "S1", "S2", "R1", "R2", "R3")
+BASE_RULES = ("IOC", "YARA", "S1", "S2", "S3", "R1", "R2", "R3")
 ALL_RULES = BASE_RULES + ("R4", "R5")
 
 _SEV_ORDER = [Severity.INFO, Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
@@ -255,6 +256,45 @@ def rule_disguised_file(view: CaseView) -> list[RuleResult]:
                      FindingCategory.SUSPICIOUS, Severity.MEDIUM, Confidence.MEDIUM, rationale,
                      [e.id]),
             keys=_file_keys(e)))
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# S3 — auto-start (persistence) from a user-writable folder
+# --------------------------------------------------------------------------- #
+
+_AUTOSTART = {
+    "registry_run": ("Run key", "T1547.001 Registry Run Keys / Startup Folder"),
+    "startup_folder": ("Startup folder entry", "T1547.001 Registry Run Keys / Startup Folder"),
+    "service": ("Auto-start service", "T1543.003 Windows Service"),
+}
+
+
+def rule_suspicious_autostart(view: CaseView) -> list[RuleResult]:
+    groups: dict[tuple[str, str], list[Evidence]] = defaultdict(list)
+    for e in view.kind(EvidenceKind.PERSISTENCE):
+        exe = e.data.get("executable")
+        if exe and e.data.get("suspicious_reasons"):
+            groups[(host_key(e.host), exe.lower())].append(e)
+    out = []
+    for _, evs in sorted(groups.items()):
+        e = evs[0]
+        label, technique = _AUTOSTART.get(e.data.get("type"), ("Auto-start entry", "T1547"))
+        entries = "; ".join(f"{_AUTOSTART.get(x.data.get('type'), (label,))[0]} '{x.data.get('name')}'"
+                            f" in {x.data.get('location')}" for x in evs)
+        rationale = (f"{entries} on {e.host} starts {e.data.get('executable')} — "
+                     + "; ".join(e.data["suspicious_reasons"]) + ". Programs that start "
+                     f"automatically from a folder any user can write to are a common way for "
+                     f"malware to survive a restart (MITRE ATT&CK {technique}). Some legitimate "
+                     "per-user applications install there too, so confidence is low until "
+                     "another finding points to the same program.")
+        keys = {o for x in evs for o in x.observables if o.type.value in ("path", "sha256")}
+        out.append(RuleResult(
+            _finding(view, "S3", f"Auto-start from a user-writable folder: "
+                                 f"{name_of(e.data.get('executable'))}",
+                     FindingCategory.SUSPICIOUS, Severity.MEDIUM, Confidence.LOW, rationale,
+                     [x.id for x in evs]),
+            keys=keys))
     return out
 
 

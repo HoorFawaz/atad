@@ -27,6 +27,14 @@ def test_scenario_is_simulated_and_labelled():
     assert len(dropper_sha256(s)) == 64
 
 
+def _only_known_false_positive(m, scenario):
+    """Every expected finding is found; the only extra is the documented one."""
+    assert m.recall == 1.0, m.as_dict()
+    known = {(k["rule"], k["title"]) for k in scenario["known_false_positives"]}
+    assert {(f.rule_id, f.title) for f in m.fp} == known, m.as_dict()
+    assert m.precision == len(m.tp) / (len(m.tp) + len(known))
+
+
 def test_demo_scores_and_evidence_is_simulated(manager):
     b = build_demo(manager)
     assert b.case.case.simulated
@@ -35,7 +43,7 @@ def test_demo_scores_and_evidence_is_simulated(manager):
     r = correlate(b.case.repo)
     avail = {"yara"} if b.yara_available else set()
     m = evaluate(r.findings, b.scenario["expected"], available=avail)
-    assert (m.precision, m.recall) == (1.0, 1.0), m.as_dict()
+    _only_known_false_positive(m, b.scenario)
     if not b.yara_available:
         assert {e["rule"] for e in m.not_testable} == {"YARA", "R3"}
 
@@ -48,7 +56,7 @@ def test_demo_without_yara_marks_untestable(manager, monkeypatch):
     assert b.yara_available is False
     m = evaluate(correlate(b.case.repo).findings, b.scenario["expected"])
     assert {e["rule"] for e in m.not_testable} == {"YARA", "R3"}
-    assert (m.precision, m.recall) == (1.0, 1.0), m.as_dict()
+    _only_known_false_positive(m, b.scenario)
 
 
 def test_evaluate_counts_misses_and_extras(manager):
@@ -60,7 +68,7 @@ def test_evaluate_counts_misses_and_extras(manager):
     extra = findings[0].model_copy(update={"id": "FND-9999", "title": "something else"})
     m = evaluate(findings + [extra], b.scenario["expected"],
                  available={"yara"} if b.yara_available else set())
-    assert [f.id for f in m.fp] == ["FND-9999"] and m.precision < 1.0
+    assert "FND-9999" in [f.id for f in m.fp] and len(m.fp) == 2
 
 
 # ------------------------------------------------------------------------- triage

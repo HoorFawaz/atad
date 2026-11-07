@@ -20,10 +20,13 @@ def test_demo_end_to_end(tmp_path):
     home = tmp_path / "cases"
     r = _run(home, "demo")
     assert r.exit_code == 0, r.output
-    assert "SIMULATED" in r.output and "precision 100%" in r.output and "recall    100%" in r.output
+    assert "SIMULATED" in r.output and "recall    100%" in r.output
+    assert "known false positive" in r.output and "Spotify.exe" in r.output
+    assert "not expected" not in r.output
     exports = home / "CASE-001" / "exports"
     metrics = json.loads(next(exports.glob("*_demo_metrics_*.json")).read_text(encoding="utf-8"))
-    assert metrics["precision"] == 1.0 and metrics["simulated"] is True
+    assert metrics["recall"] == 1.0 and 0.9 < metrics["precision"] < 1.0
+    assert metrics["simulated"] is True
     html = next((home / "CASE-001" / "reports").glob("*.html")).read_text(encoding="utf-8")
     assert "Simulated data" in html and "203.0.113.50" in html
     assert list(exports.glob("*.csv")) and list(exports.glob("*.jsonl"))

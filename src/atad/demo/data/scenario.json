@@ -13,7 +13,7 @@
     "10:09 new account svc-backup2 created by sara",
     "10:15 scheduled backup script runs with -ExecutionPolicy Bypass (decoy)",
     "10:20 7 failed logons from 10.66.0.31 against administrator, none succeed",
-    "10:30 live snapshot of processes, connections and startup entries"
+    "10:30 live snapshot of processes, connections and startup entries (the dropper's Run key, plus Spotify and SecurityHealth as benign entries)"
   ],
   "files": [
     {"name": "invoice.pdf.exe", "content": "MZ\u0090\u0000ATAD demo file. Harmless. ATAD-DEMO-SIMULATED-DROPPER. This is not a program.\n", "modified": "2026-11-03T10:06:58+00:00"},
@@ -71,6 +71,7 @@
     ],
     "startup": [
       {"location": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "type": "registry_run", "name": "WinUpdate", "command": "\"C:\\Users\\sara\\AppData\\Roaming\\invoice.pdf.exe\" /silent", "executable": "C:\\Users\\sara\\AppData\\Roaming\\invoice.pdf.exe"},
+      {"location": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "type": "registry_run", "name": "Spotify", "command": "\"C:\\Users\\sara\\AppData\\Roaming\\Spotify\\Spotify.exe\" --autostart --minimized", "executable": "C:\\Users\\sara\\AppData\\Roaming\\Spotify\\Spotify.exe"},
       {"location": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "type": "registry_run", "name": "SecurityHealth", "command": "C:\\Windows\\System32\\SecurityHealthSystray.exe", "executable": "C:\\Windows\\System32\\SecurityHealthSystray.exe"}
     ]
   },
@@ -86,8 +87,13 @@
     {"rule": "R2", "title": "invoice.pdf.exe connected to known indicator 203.0.113.50", "why": "ProcessGuid + PID/path link"},
     {"rule": "R3", "title": "YARA-flagged file was executed: invoice.pdf.exe", "needs": "yara", "why": "same SHA-256"},
     {"rule": "R5", "title": "Possible coordinated activity on LAB-WS-07", "why": "many findings within minutes"},
+    {"rule": "S3", "title": "Auto-start from a user-writable folder: invoice.pdf.exe", "why": "Run key WinUpdate points to AppData\\Roaming"},
+    {"rule": "R4", "from": "Auto-start from a user-writable folder: invoice.pdf.exe", "title": "Indicator from the Run key found in other sources", "why": "Sysmon 11 shows the dropper writing that same file"},
     {"rule": "R4", "from": "invoice.pdf.exe connected to known indicator 203.0.113.50", "title": "Indicator from invoice.pdf.exe connection found in other events", "why": "the dropper also copied itself to AppData\\Roaming (Sysmon 11)"},
     {"rule": "R4", "from": "powershell.exe connected to known indicator 203.0.113.50", "title": "Indicator from PowerShell connection found in other events", "why": "the same PowerShell wrote invoice.pdf.exe (Sysmon 11)"}
+  ],
+  "known_false_positives": [
+    {"rule": "S3", "title": "Auto-start from a user-writable folder: Spotify.exe", "why": "Legitimate per-user app installed in AppData\\Roaming. S3 cannot tell it apart by location alone, which is why S3 has low confidence."}
   ],
   "decoys": [
     "3 failed logons by ahmed from 10.66.0.20 then success (below the threshold)",
@@ -95,6 +101,7 @@
     "chrome.exe to 192.0.2.80 (not an indicator)",
     "Q3-report.pdf and notes.txt (type matches the name)",
     "SecurityHealth Run key (system folder)",
+    "Spotify Run key in AppData\\Roaming (legitimate; S3 flags it with low confidence — a known false positive, counted as one)",
     "198.51.100.0/24 indicator range (never contacted)",
     "RDP listening on 3389 (normal service)"
   ]

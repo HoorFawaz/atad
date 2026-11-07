@@ -300,6 +300,50 @@ def test_r4_ip_independent_is_medium(scenario):
     assert "can be shared" in p4.rationale
 
 
+def _autostart(name, exe, kind="registry_run", host=WS1):
+    from atad.modules.host.collector import _USER_WRITABLE
+    reasons = (["starts from a user-writable folder"]
+               if any(d in exe.lower() for d in _USER_WRITABLE) else [])
+    return ev("persistence", "host", host=host,
+              data={"type": kind, "name": name, "executable": exe,
+                    "location": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                    "suspicious_reasons": reasons},
+              obs=[("path", exe)])
+
+
+def test_s3_user_writable_autostart(case):
+    cid = case.case.id
+    items = [
+        _autostart("WinUpdate", "C:\\Users\\sara\\AppData\\Roaming\\upd.exe"),
+        _autostart("WinUpdate2", "C:\\Users\\sara\\AppData\\Roaming\\upd.exe",
+                   kind="startup_folder"),                                    # same program
+        _autostart("Svc", "C:\\Users\\Public\\svc.exe", kind="service"),
+        _autostart("SecurityHealth", "C:\\Windows\\System32\\SecurityHealthSystray.exe"),
+        _autostart("OneDrive", "C:\\Users\\sara\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe"),
+    ]
+    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
+    s3 = {f.title: f for f in correlate(case.repo).findings if f.rule_id == "S3"}
+    assert set(s3) == {"Auto-start from a user-writable folder: upd.exe",
+                       "Auto-start from a user-writable folder: svc.exe"}
+    upd = s3["Auto-start from a user-writable folder: upd.exe"]
+    assert len(upd.evidence_ids) == 2
+    assert upd.severity is Severity.MEDIUM and upd.confidence is Confidence.LOW
+    assert "T1547.001" in upd.rationale
+    assert "T1543.003" in s3["Auto-start from a user-writable folder: svc.exe"].rationale
+
+
+def test_s3_linked_by_r4_to_the_file_creation(case):
+    cid = case.case.id
+    exe = "C:\\Users\\sara\\AppData\\Roaming\\upd.exe"
+    items = [_autostart("WinUpdate", exe),
+             ev("log_event", "log", t=T0, data={"target_file": exe}, obs=[("path", exe)])]
+    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
+    findings = correlate(case.repo).findings
+    s3 = next(f for f in findings if f.rule_id == "S3")
+    r4 = [f for f in findings if f.rule_id == "R4" and s3.id in f.title]
+    assert r4 and "independent source" in r4[0].rationale
+
+
 def test_no_iocs_no_ioc_findings(case):
     assert correlate(case.repo).findings == []
 

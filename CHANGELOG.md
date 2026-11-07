@@ -38,6 +38,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   with precision / recall per rule saved as JSON (M8).
 - R4 links within one source only between timed events, not between two records of
   the same object (e.g. a file's hash record and its YARA match).
+- Rule S3: auto-start entry (Run key, Startup folder, service) that runs a program from a
+  user-writable folder — MITRE ATT&CK T1547.001 / T1543.003; medium severity, low confidence.
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

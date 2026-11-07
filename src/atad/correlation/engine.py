@@ -74,6 +74,8 @@ def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None) -> Cor
         base += R.rule_encoded_powershell(view)
     if on("S2"):
         base += R.rule_disguised_file(view)
+    if on("S3"):
+        base += R.rule_suspicious_autostart(view)
     if on("R1"):
         base += R.rule_bruteforce(view, cfg)
     if on("R2"):

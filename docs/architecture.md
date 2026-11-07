@@ -217,6 +217,7 @@ Single-source rules (each turns one kind of suspicious evidence into a finding):
 | YARA Rule matched | A `yara_match` record | the rule's `meta: severity`, else medium | suspicious |
 | S1 Encoded PowerShell | Process command line with `-enc` / `-EncodedCommand` (and short forms) | medium / medium | suspicious |
 | S2 Disguised file | File whose real type does not match its extension, or a double extension | medium / medium | suspicious |
+| S3 Suspicious auto-start | Run key, Startup folder entry or auto-start service whose program is in a user-writable folder (Temp, AppData\\Roaming, Downloads, Users\\Public; /tmp on Linux). MITRE ATT&CK T1547.001 / T1543.003. Some legitimate per-user apps install there, so it stays low confidence until R4 links it to another finding | medium / low | suspicious |
 
 Correlation rules (link evidence across events and sources):
 
@@ -418,7 +419,7 @@ Step status: `done`; `limited` (a check is not available here, e.g. another OS);
 
 `atad demo` builds a **simulated** case (`src/atad/demo/data/scenario.json`): RDP
 password guessing, encoded PowerShell, a disguised dropper that calls a C2 address
-and adds a Run key, plus seven benign look-alikes (decoys). The data goes through the
+and adds a Run key, plus eight benign look-alikes (decoys). The data goes through the
 real parsers — event XML through the log mapper, the dropper and decoy files through
 the files module (hash, type, YARA), the host snapshot through the host converters,
 the IOC list through the IOC loader. Only the collection step is replaced.
@@ -428,7 +429,12 @@ produced findings and reports precision (findings that were right) and recall
 (expected findings that were found) per rule, and saves them as JSON. A finding whose
 tool is missing (e.g. YARA) is reported as *not testable*, not as a miss.
 
-Limits: the scenario was written by the same author as the rules, so 100% on it shows
+Current result: recall 100%, precision 94% (15 of 16). The one false positive is
+documented in the scenario: S3 flags Spotify, a legitimate per-user app in
+AppData\Roaming, because location alone cannot tell it from malware — which is why S3
+has low confidence.
+
+Limits: the scenario was written by the same author as the rules, so the score shows
 the rules do what they were designed to do — not how they perform on real incidents.
 
 ---
