@@ -29,6 +29,12 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   every raw file (exit code 4 when one changed or is missing) (M7).
 - `atad export timeline` (CSV / JSONL with Timesketch fields) and `atad export case`
   (case zip with SHA256SUMS.txt) (M7).
+- `atad triage` with profiles soc / dfir / full: runs the modules on this machine,
+  then correlates, reports and (dfir/full) exports; `--only` / `--skip` by module (M8).
+- `atad demo`: built-in SIMULATED scenario with decoys, loaded through the real parsers,
+  with precision / recall per rule saved as JSON (M8).
+- R4 links within one source only between timed events, not between two records of
+  the same object (e.g. a file's hash record and its YARA match).
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

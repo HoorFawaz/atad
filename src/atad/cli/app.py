@@ -21,7 +21,9 @@ from atad.cli import net as net_cli
 from atad.cli import report as report_cli
 from atad.cli import scope as scope_cli
 from atad.cli.context import state
+from atad.cli.demo import demo
 from atad.cli.doctor import doctor
+from atad.cli.triage import triage
 
 app = typer.Typer(
     name="atad",
@@ -42,6 +44,8 @@ app.command("findings")(correlate_cli.findings)
 app.command("timeline")(correlate_cli.timeline)
 app.command("report")(report_cli.report)
 app.add_typer(report_cli.export_app, name="export")
+app.command("triage")(triage)
+app.command("demo")(demo)
 
 
 def _version(value: bool) -> None:

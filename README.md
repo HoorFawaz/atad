@@ -35,9 +35,14 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-## Usage (current milestone)
+## Usage
 
 ```bash
+atad demo                       # SIMULATED demo case: findings, report, precision/recall
+atad triage --profile soc       # first look at THIS machine: all modules, correlate, report
+atad triage --profile dfir --path .\evidence --iocs .\iocs.txt
+atad triage --profile full --target 192.168.1.15 --skip files
+
 atad doctor                     # which tools are installed, admin rights
 atad case new --name "Suspicious workstation" --profile soc
 atad case list

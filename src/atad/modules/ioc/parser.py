@@ -146,7 +146,7 @@ def parse_csv(text: str) -> ParseReport:
             try:
                 confidence = Confidence(conf_text)
             except ValueError:
-                report.rejected.append((n, value, f"confidence must be low, medium or high"))
+                report.rejected.append((n, value, "confidence must be low, medium or high"))
                 continue
         _one(value, get("type"), n, report, confidence, get("description"))
     return report

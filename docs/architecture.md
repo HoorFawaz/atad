@@ -225,7 +225,7 @@ Correlation rules (link evidence across events and sources):
 | R1 Brute force | ≥ 5 × 4625 from the same source IP on the same host within 10 min. Failures closer than 10 min apart form one burst, so a long attack is one finding. A 4624 from that IP during the burst or within 10 min after it → *then success* | with success: high / high; without: medium / high | suspicious |
 | R2 Process → IOC connection | Network connection (psutil / Sysmon 3) to an IOC IP/domain/range, linked to its process by Sysmon ProcessGuid, else by PID + program path | high / indicator confidence | suspicious |
 | R3 Flagged file executed | A process with the SHA-256 of a YARA-matched file (high confidence), or the same path when no hash exists (medium) | high | suspicious |
-| R4 Indicator in other sources or events | A key indicator of a finding (IP, domain, hash, path) also appears in (a) evidence from a different module — *independent source*, or (b) the same module but a different kind of event — *same source, different event type* (e.g. the brute-force IP later contacted by a process, both from event logs). Repeats of the same kind of event from the same module are not links. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium; confidence from the table below | correlated |
+| R4 Indicator in other sources or events | A key indicator of a finding (IP, domain, hash, path) also appears in (a) evidence from a different module — *independent source*, or (b) the same module but a different kind of event — *same source, different event type* (e.g. the brute-force IP later contacted by a process, both from event logs). Within one source both records must be events with a time; repeats of the same kind of event, and two records of the same object (a file's hash record and its YARA match), are not links. Loopback and own addresses are skipped; links already made by another finding are not repeated | medium; confidence from the table below | correlated |
 | R5 Activity cluster | ≥ 3 suspicious findings on the same host within 15 min (by event time) | highest of the group / medium | hypothesis |
 
 **R4 confidence.** Two things decide how much one shared indicator is worth:
@@ -372,11 +372,55 @@ atad timeline  --case ... [--host ...] [--findings-only]
 atad report    --case ... [--format html|json|all]
 atad export    timeline --case ... [--format csv|jsonl|all]
 atad export    case --case ...
-atad triage [--target IP] --profile soc|dfir|full [--case ...]
+atad triage [--profile soc|dfir|full] [--only|--skip host,logs,files,net]
+            [--path ...] [--target ...] [--iocs ...] [--hours N] [--case ...]
+atad demo                                          SIMULATED demo case + precision/recall
 ```
 
 Exit codes: `0` success, `1` error, `2` invalid input, `3` partial execution,
 `4` report written but raw evidence changed or missing (integrity check failed).
+
+---
+
+### 9.4 Triage profiles (M8)
+
+`atad triage` runs the modules of a profile on **this** machine, then correlates,
+writes the HTML/JSON report and, for `dfir` and `full`, exports the timeline and
+the case zip.
+
+| Step | `soc` | `dfir` | `full` |
+|---|---|---|---|
+| host | all checks | all checks | all checks |
+| logs (live) | last 24 h | last 7 days | last 7 days |
+| files (with `--path`) | hash, info, YARA | hash, info, YARA | hash, info, YARA |
+| net | interfaces; ping + DNS with `--target` | interfaces; DNS with `--target` | all checks, Nmap `quick`, with `--target` |
+| IOC list (with `--iocs`) | loaded first | loaded first | loaded first |
+| correlate + report | yes | yes | yes |
+| timeline export + case zip | no | yes | yes |
+
+Why: SOC triage must be quick and quiet, so it never scans. DFIR needs a wider log
+window and a preserved copy to hand over. Only `full` sends an active scan, and only
+to an authorized `--target`. Every input is validated before a case is created.
+
+Step status: `done`; `limited` (a check is not available here, e.g. another OS);
+`partial` (a check failed or timed out — exit code 3); `failed`; `skipped`.
+
+### 9.5 Demo dataset and metrics (M8)
+
+`atad demo` builds a **simulated** case (`src/atad/demo/data/scenario.json`): RDP
+password guessing, encoded PowerShell, a disguised dropper that calls a C2 address
+and adds a Run key, plus seven benign look-alikes (decoys). The data goes through the
+real parsers — event XML through the log mapper, the dropper and decoy files through
+the files module (hash, type, YARA), the host snapshot through the host converters,
+the IOC list through the IOC loader. Only the collection step is replaced.
+
+The scenario lists the findings that must appear. `atad demo` compares them with the
+produced findings and reports precision (findings that were right) and recall
+(expected findings that were found) per rule, and saves them as JSON. A finding whose
+tool is missing (e.g. YARA) is reported as *not testable*, not as a miss.
+
+Limits: the scenario was written by the same author as the rules, so 100% on it shows
+the rules do what they were designed to do — not how they perform on real incidents.
 
 ---
 

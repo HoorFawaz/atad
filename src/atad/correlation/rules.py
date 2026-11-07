@@ -499,6 +499,7 @@ def rule_pivot(view: CaseView, stored: list[tuple[Finding, set[Observable]]]) ->
                 continue
             origin_modules = {view.by_id[x].source_module for x in origin}
             origin_kinds = {(view.by_id[x].source_module, view.by_id[x].kind) for x in origin}
+            origin_timed = any(view.by_id[x].event_time for x in origin)
             indep, other_kind = [], []
             for x in dict.fromkeys(view.by_obs.get((k.type.value, k.value), [])):
                 e = view.by_id[x]
@@ -506,9 +507,12 @@ def rule_pivot(view: CaseView, stored: list[tuple[Finding, set[Observable]]]) ->
                     continue
                 if e.source_module not in origin_modules:
                     indep.append(x)          # a different tool saw it
-                elif (e.source_module, e.kind) not in origin_kinds:
+                elif ((e.source_module, e.kind) not in origin_kinds
+                      and origin_timed and e.event_time is not None):
                     other_kind.append(x)     # same tool, a different kind of event
-                # same tool and same kind of event = a repeat, not a new link
+                # Not links: the same kind of event again (a repeat), or two
+                # records that describe one object rather than two events in
+                # time (e.g. a file's hash record and its YARA match).
             new = indep + other_kind
             if not new or (k, frozenset(new)) in reported:
                 continue  # nothing new, or the same link was reported from another finding

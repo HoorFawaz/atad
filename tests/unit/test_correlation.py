@@ -253,31 +253,42 @@ def test_r4_same_source_other_event_type(case):
     assert stored[-1].id in p4.evidence_ids and stored[-2].id not in p4.evidence_ids
 
 
-def _disguised(sha):
-    return ev("file", "files", data={"name": "a.pdf.exe", "path": "C:\\a.pdf.exe",
-                                     "suspicious_reasons": ["double extension"]},
+def _disguised(sha, t=None):
+    return ev("file", "files", t=t, data={"name": "a.pdf.exe", "path": "C:\\a.pdf.exe",
+                                          "suspicious_reasons": ["double extension"]},
               obs=[("path", "C:\\a.pdf.exe"), ("sha256", sha)])
 
 
-@pytest.mark.parametrize("other,expected", [
-    # same hash seen running by psutil (independent tool) -> high
-    (lambda sha: ev("process", "host", data={"exe": "C:\\x.exe"}, obs=[("sha256", sha)]),
-     Confidence.HIGH),
-    # same hash, same tool (files), different event type -> medium
-    (lambda sha: ev("yara_match", "files", data={"path": "C:\\x.exe", "sha256": sha,
-                                                  "rule": "R"}, obs=[("sha256", sha)]),
-     Confidence.MEDIUM),
-])
-def test_r4_hash_confidence(case, other, expected):
-    sha = "3" * 64
+def _r4_from_s2(case, *items):
     cid = case.case.id
-    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid})
-                                 for e in (_disguised(sha), other(sha))])
-    r4 = [f for f in correlate(case.repo).findings if f.rule_id == "R4"
-          and "S2" not in f.title]
-    from_s2 = [f for f in r4 if "a.pdf.exe" in f.rationale]
-    assert from_s2 and from_s2[0].confidence is expected
-    assert "exact hash match means the same file" in from_s2[0].rationale
+    case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
+    return [f for f in correlate(case.repo).findings
+            if f.rule_id == "R4" and "a.pdf.exe" in f.rationale]
+
+
+def test_r4_hash_independent_source_is_high(case):
+    sha = "3" * 64
+    found = _r4_from_s2(case, _disguised(sha),
+                        ev("process", "host", data={"exe": "C:\\x.exe"}, obs=[("sha256", sha)]))
+    assert found and found[0].confidence is Confidence.HIGH
+    assert "exact hash match means the same file" in found[0].rationale
+
+
+def test_r4_hash_same_source_other_event_is_medium(case):
+    sha = "3" * 64
+    found = _r4_from_s2(case, _disguised(sha, T0),
+                        ev("log_event", "files", t=T0 + timedelta(minutes=1),
+                           obs=[("sha256", sha)]))
+    assert found and found[0].confidence is Confidence.MEDIUM
+
+
+def test_r4_two_views_of_one_file_are_not_a_link(case):
+    # A file's info record and its YARA record describe one object, not two events.
+    sha = "3" * 64
+    found = _r4_from_s2(case, _disguised(sha, T0),
+                        ev("yara_match", "files", data={"path": "C:\\a.pdf.exe", "sha256": sha,
+                                                        "rule": "R"}, obs=[("sha256", sha)]))
+    assert found == []
 
 
 def test_r4_ip_independent_is_medium(scenario):

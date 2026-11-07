@@ -11,11 +11,10 @@ from typing import Optional
 import typer
 
 from atad.cli.context import handle_errors, state
-from atad.core.exceptions import ValidationError
-from atad.core.execution import import_file
 from atad.correlation.rules import CaseView, IocIndex
-from atad.evidence.models import Confidence, EvidenceKind, ExecutionStatus, Ioc, SourceModule
-from atad.modules.ioc.parser import SUPPORTED_TYPES, parse_file
+from atad.evidence.models import Confidence, EvidenceKind
+from atad.modules.ioc.loader import load_ioc_file
+from atad.modules.ioc.parser import SUPPORTED_TYPES
 from atad.utils.validation import validate_evidence_path
 
 app = typer.Typer(help="Indicators of compromise: load lists and match them against evidence.",
@@ -36,19 +35,9 @@ def ioc_load(
 ) -> None:
     """Copy an IOC list into the case (hashed) and store its indicators."""
     src = validate_evidence_path(path)
-    if src.is_dir():
-        raise ValidationError("--path must be a file, not a folder")
     oc = state.manager().open_case(case)
-    rec = import_file(oc, module=SourceModule.IOC, tool="atad-ioc", source=src)
-    if rec.execution.status is not ExecutionStatus.SUCCESS or rec.raw_path is None:
-        raise ValidationError(f"could not copy {src}: {rec.execution.error}")
-
-    report = parse_file(rec.raw_path)
-    source = name or src.name
-    iocs = [Ioc(case_id=oc.case.id, type=p.type, value=p.value, source=source,
-                confidence=p.confidence or confidence, description=p.description)
-            for p in report.iocs]
-    added = oc.repo.add_iocs(iocs)
+    load = load_ioc_file(oc, src, name=name, confidence=confidence)
+    rec, report, source, iocs, added = (load, load.report, load.source, load.iocs, load.added)
 
     typer.secho(f"{oc.case.id} — IOC list '{source}'", bold=True)
     typer.echo(f"  copied to {rec.execution.raw_ref} (sha256 {rec.execution.raw_sha256})")

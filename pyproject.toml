@@ -32,7 +32,7 @@ atad = "atad.main:run"
 where = ["src"]
 
 [tool.setuptools.package-data]
-atad = ["cases/schema.sql", "reports/templates/*.j2"]
+atad = ["cases/schema.sql", "reports/templates/*.j2", "demo/data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
