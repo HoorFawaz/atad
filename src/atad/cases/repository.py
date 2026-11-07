@@ -502,6 +502,23 @@ class CaseRepository:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    # ----------------------------------------------------------------- reports
+
+    def add_report(self, fmt: str, path: str, sha256: str, created_at: datetime) -> int:
+        """Record a generated report (path relative to the case folder)."""
+        case_id = self.get_case().id
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO reports(case_id, format, path, sha256, created_at) VALUES (?,?,?,?,?)",
+                (case_id, fmt, path, sha256, _ts(created_at)),
+            )
+            return int(cur.lastrowid)
+
+    def list_reports(self) -> list[dict]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT * FROM reports ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+
     # ----------------------------------------------------------------- counts
 
     def counts(self) -> dict[str, int]:

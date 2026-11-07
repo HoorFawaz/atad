@@ -18,6 +18,7 @@ from atad.cli import host as host_cli
 from atad.cli import ioc as ioc_cli
 from atad.cli import log as log_cli
 from atad.cli import net as net_cli
+from atad.cli import report as report_cli
 from atad.cli import scope as scope_cli
 from atad.cli.context import state
 from atad.cli.doctor import doctor
@@ -39,6 +40,8 @@ app.add_typer(ioc_cli.app, name="ioc")
 app.command("correlate")(correlate_cli.correlate)
 app.command("findings")(correlate_cli.findings)
 app.command("timeline")(correlate_cli.timeline)
+app.command("report")(report_cli.report)
+app.add_typer(report_cli.export_app, name="export")
 
 
 def _version(value: bool) -> None:

@@ -24,6 +24,11 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   source (lower confidence), and says which kind of link each one is.
 - R4 confidence also depends on the indicator: a shared hash counts more than a
   shared IP address, domain or path (basis documented in docs/architecture.md §7).
+- `atad report`: self-contained HTML report and JSON report from the same data, with
+  findings linked to evidence, coverage of every check, and a fresh integrity check of
+  every raw file (exit code 4 when one changed or is missing) (M7).
+- `atad export timeline` (CSV / JSONL with Timesketch fields) and `atad export case`
+  (case zip with SHA256SUMS.txt) (M7).
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

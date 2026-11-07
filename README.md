@@ -77,6 +77,12 @@ atad correlate --case CASE-001 --config .\correlation.yaml
 atad findings --case CASE-001 --min-severity high
 atad findings --case CASE-001 --show FND-0004      # why, and the evidence behind it
 atad timeline --case CASE-001 --findings-only
+
+# Reports and exports
+atad report --case CASE-001                        # HTML + JSON into the case's reports folder
+atad report --case CASE-001 --format html
+atad export timeline --case CASE-001               # CSV + JSONL (Timesketch, Timeline Explorer, Elastic)
+atad export case --case CASE-001                   # whole case as one zip with SHA256SUMS.txt
 ```
 
 Without `--case`, `atad net` creates a case and authorizes its `--target`.
@@ -106,6 +112,9 @@ r5_min_findings: 3      # suspicious findings on one host
 r5_window_minutes: 15
 disabled_rules: [S2]
 ```
+
+`atad report` hashes every raw file again. If one changed or is missing, the
+report says so at the top and the command exits with code 4.
 
 Cases are stored in `./cases` (override with `--home` or the `ATAD_HOME`
 environment variable).

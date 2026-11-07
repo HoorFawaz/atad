@@ -269,6 +269,26 @@ checks precision and recall on it.
 
 ---
 
+## 7.1 Reports and exports (M7)
+
+| Output | Where | For | Notes |
+|---|---|---|---|
+| HTML report | `reports/CASE-x_report_<UTC>.html` | people | One self-contained file (no internet needed), light/dark, prints cleanly. Every finding links to its evidence |
+| JSON report | `reports/CASE-x_report_<UTC>.json` | tools | Same data as the HTML (`format: atad-report`, `version: 1`), all evidence included |
+| Timeline CSV / JSONL | `exports/CASE-x_timeline_<UTC>.csv/.jsonl` | Timeline Explorer, Timesketch, Elastic | CSV cells that start with `= + - @` get a leading `'` so spreadsheets do not run them as formulas |
+| Case zip | `exports/CASE-x_case_<UTC>.zip` | handing a case to another analyst | Database snapshot (SQLite backup API), raw files, logs, reports and `SHA256SUMS.txt` |
+
+Rules every report follows:
+- Each output is a new read-only file; reports are recorded in the `reports` table with their SHA-256.
+- Every raw file is hashed again while the report is built. A changed or missing file is shown at the top
+  of the report and the command exits with code 4.
+- Coverage lists every check, including those that failed, were unavailable or were skipped by choice,
+  because "no finding" from a check that did not run means nothing.
+- Simulated data is marked on the cover and on each simulated record.
+- All collected text is HTML-escaped (Jinja2 autoescape).
+
+---
+
 ## 8. Tool adapter interface
 
 ```python
@@ -345,15 +365,18 @@ atad files hash | info | scan --path ...
 atad log   [--only ...|--skip ...]               [--case ...]   (local, live export)
 atad log   import --path ... --source-host ...                 (import mode)
 atad log   search --case ... --keyword ...
-atad ioc   load --file iocs.txt --case ...
-atad ioc   check --case ...
-atad correlate --case ...
-atad timeline  --case ...
-atad report    --case ... --format html|json
+atad ioc   load --path iocs.txt --case ...  |  list  |  check
+atad correlate --case ... [--config thresholds.yaml]
+atad findings  --case ... [--show FND-xxxx] [--min-severity ...]
+atad timeline  --case ... [--host ...] [--findings-only]
+atad report    --case ... [--format html|json|all]
+atad export    timeline --case ... [--format csv|jsonl|all]
+atad export    case --case ...
 atad triage [--target IP] --profile soc|dfir|full [--case ...]
 ```
 
-Exit codes: `0` success, `1` error, `2` invalid input, `3` partial execution.
+Exit codes: `0` success, `1` error, `2` invalid input, `3` partial execution,
+`4` report written but raw evidence changed or missing (integrity check failed).
 
 ---
 
@@ -396,7 +419,7 @@ How tools used in real SOC / DFIR work are built, and what atad takes from them:
 | Rules shipped next to the binary, updatable | Chainsaw, Hayabusa | `rules/` folder beside `atad.exe` |
 | Fast EVTX parsing | Chainsaw (Rust EVTX parser) | Same Rust parser through the `evtx` package (~800× faster than python-evtx on the sample) |
 | Works without extra infrastructure (no SIEM/ELK) | Chainsaw | Everything runs locally, offline; SQLite per case |
-| Collection packed with a collection log | Velociraptor offline collector | Case folder with `logs/execution.jsonl`; single-zip case export planned with M7 |
-| Timeline export for analyst tools | Hayabusa (CSV/JSON/JSONL) | Planned in M7 |
+| Collection packed with a collection log | Velociraptor offline collector | Case folder with `logs/execution.jsonl`; `atad export case` packs it into one zip with SHA256SUMS.txt |
+| Timeline export for analyst tools | Hayabusa (CSV/JSON/JSONL) | `atad export timeline`: CSV and JSONL with the Timesketch fields (`message`, `datetime`, `timestamp_desc`), `@timestamp` for Elastic |
 | Sigma detection rules | Hayabusa, Chainsaw | Planned in M10 |
 | Automated tests and builds | All maintained projects | GitHub Actions: tests on Windows + Linux, release build on tag |
