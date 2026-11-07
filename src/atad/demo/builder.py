@@ -152,7 +152,10 @@ def _store_host(oc: OpenCase, scenario: dict, sha: str) -> int:
             oc, module=SourceModule.HOST, check=check, tool="atad-demo-host", tool_version=None,
             mode=CollectionMode.IMPORT, host=host, host_declared=True,
             target="demo dataset (simulated host snapshot)",
-            collect=lambda c=cap: c, to_evidence=convert)
+            collect=lambda c=cap: c,
+            # Label the records with their real source: the dataset, not psutil.
+            to_evidence=lambda c, ctx, conv=convert: [
+                e.model_copy(update={"source_tool": "atad-demo-host"}) for e in conv(c, ctx)])
         n += len(out.evidence)
     return n
 
