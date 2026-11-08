@@ -2,7 +2,9 @@
 
 All notable changes to ATAD are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — 0.1.0
+## [0.1.0] — 2026-11-08
+
+First release.
 
 ### Cases and evidence
 - Case management, a normalized evidence model and one SQLite database per case.
