@@ -73,3 +73,20 @@ def test_real_doctor_runs():
     assert r.exit_code in (0, 1)
     assert "Traceback" not in r.output
     assert "psutil" in r.output and "nmap" in r.output
+
+
+def test_doctor_in_the_single_file_build(monkeypatch):
+    """atad.exe bundles Python; pip advice would be wrong there."""
+    import sys
+
+    from typer.testing import CliRunner
+
+    from atad.adapters.catalog import PythonEvtx
+    from atad.cli.app import app
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr("importlib.util.find_spec",
+                        lambda name, *a: None if name == "Evtx" else __import__("importlib.machinery").machinery.ModuleSpec(name, None))
+    info = PythonEvtx().detect()
+    assert not info.available and info.reason == "not included in this build"
+    out = CliRunner().invoke(app, ["doctor"]).output
+    assert "built into atad.exe" in out and "pip install" not in out

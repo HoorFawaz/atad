@@ -30,7 +30,9 @@ def doctor(
     typer.secho("System", bold=True)
     typer.echo(f"  host     : {local_hostname()}")
     typer.echo(f"  os       : {os_description()}")
-    typer.echo(f"  python   : {sys.version.split()[0]}")
+    py = sys.version.split()[0]
+    typer.echo(f"  python   : {py} (built into atad.exe — nothing to install)" if getattr(sys, "frozen", False)
+               else f"  python   : {py}")
     admin = {True: "yes", False: "no", None: "unknown"}[elevated]
     typer.echo(f"  admin    : {admin}")
     if elevated is False:

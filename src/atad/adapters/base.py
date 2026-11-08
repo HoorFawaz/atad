@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -120,6 +121,8 @@ class PythonLibrary(ToolAdapter):
 
     def _detect(self) -> ToolInfo:
         if importlib.util.find_spec(self.module) is None:
+            if getattr(sys, "frozen", False):          # the single-file atad.exe
+                return self._info(False, reason="not included in this build")
             return self._info(False, reason=f"pip install {self.distribution}")
         try:
             version = metadata.version(self.distribution)

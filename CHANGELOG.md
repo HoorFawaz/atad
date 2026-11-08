@@ -56,6 +56,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   a runnable double extension); other type mismatches become a note. Found on a real
   laptop: 31 harmless files (.pages, .nupkg, .xpi, Git/npm scripts, .node addons) were flagged.
 - The demo YARA rules no longer run in real scans unless given with `--rules`.
+- `atad doctor` in the single-file build says Python is built in and does not suggest
+  `pip install` for libraries that are not included.
 - Progress counter for long steps (listing, hashing, YARA, processes, log records, Sigma
   rules), and a line naming each triage stage, shown only in a terminal; `ATAD_NO_PROGRESS=1`
   turns them off.
