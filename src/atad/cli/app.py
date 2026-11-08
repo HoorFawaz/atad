@@ -27,7 +27,7 @@ from atad.cli.triage import triage
 
 app = typer.Typer(
     name="atad",
-    help="ATAD (عَتاد) — Advanced Toolkit for Attack & Defense.",
+    help="ATAD — Advanced Toolkit for Attack & Defense.",
     invoke_without_command=True,
     add_completion=False,
 )
