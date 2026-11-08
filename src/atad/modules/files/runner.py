@@ -129,6 +129,34 @@ def run_files(
             outcome.evidence = case.repo.add_evidence_many(to_evidence(capture, ctx))
         result.outcomes.append(outcome)
 
+    # The folder is listed once, and when both hash and scan run, each file is
+    # read once for both (big folders take half the time).
+    walk_cache: dict[str, fc.WalkResult] = {}
+
+    def walk() -> fc.WalkResult:
+        if "w" not in walk_cache:
+            walk_cache["w"] = fc.walk_files(path, max_files, exclude)
+        return walk_cache["w"]
+
+    scan_plan = _scan_plan(path, rules) if "scan" in checks and "scan" not in excluded else None
+    together = "hash" in checks and "hash" not in excluded and scan_plan is not None \
+        and scan_plan[0] is not None
+    pending_scan: dict[str, dict] = {}
+
+    def hash_collect() -> dict:
+        if together:
+            try:
+                compiled = fc.compile_rules(scan_plan[0])
+            except Exception:  # noqa: BLE001 - bad rules: the scan check reports it on its own
+                compiled = None
+            if compiled is not None:
+                hash_cap, scan_cap = fc.collect_hash_and_scan(
+                    path, scan_plan[0], max_files=max_files, exclude=exclude, walk=walk(),
+                    compiled=compiled)
+                pending_scan["cap"] = scan_cap
+                return hash_cap
+        return fc.collect_hashes(path, max_files, exclude, walk=walk())
+
     # Walk the module's own order so the record reads naturally.
     for check in CHECKS:
         if check in excluded:
@@ -141,37 +169,40 @@ def run_files(
         elif check not in checks:
             continue
         elif check == "hash":
-            run("hash", "hashlib", py_version,
-                lambda: fc.collect_hashes(path, max_files, exclude), fc.hashes_to_evidence)
+            run("hash", "hashlib", py_version, hash_collect, fc.hashes_to_evidence)
         elif check == "info":
             run("info", "os.stat", py_version,
-                lambda: fc.collect_info(path, max_files, exclude), fc.info_to_evidence)
+                lambda: fc.collect_info(path, max_files, exclude, walk=walk()), fc.info_to_evidence)
         elif check == "scan":
-            _run_scan(case, path, mode, rules, max_files, exclude, result, run)
+            _run_scan(case, path, mode, scan_plan, max_files, exclude, result, run, walk, pending_scan)
     return result
 
 
-def _run_scan(case, path, mode, rules, max_files, exclude, result, run) -> None:
+def _scan_plan(path: Path, rules: Path | None) -> tuple[list[Path] | None, str | None, object]:
+    """(rule files or None, reason when unavailable, yara ToolInfo)."""
     yara_info = YaraPython().detect()
     if not yara_info.available:
-        ex = record_skipped(
-            case, module=SourceModule.FILES, tool="yara-python", collection_mode=mode,
-            status=ExecutionStatus.UNAVAILABLE,
-            reason=f"yara-python not installed ({yara_info.reason})", target=str(path),
-        )
-        result.outcomes.append(CheckOutcome("scan", ex))
-        return
-
+        return None, f"yara-python not installed ({yara_info.reason})", yara_info
     rules_path = rules if rules is not None else default_rules_path()
     rule_files = fc.find_rule_files(rules_path)
     if not rule_files:
+        return None, f"no YARA rules (.yar/.yara) found at {rules_path}", yara_info
+    return rule_files, None, yara_info
+
+
+def _run_scan(case, path, mode, plan, max_files, exclude, result, run, walk, pending) -> None:
+    rule_files, reason, yara_info = plan
+    if rule_files is None:
         ex = record_skipped(
             case, module=SourceModule.FILES, tool="yara-python", collection_mode=mode,
-            status=ExecutionStatus.UNAVAILABLE,
-            reason=f"no YARA rules (.yar/.yara) found at {rules_path}", target=str(path),
+            status=ExecutionStatus.UNAVAILABLE, reason=reason, target=str(path),
         )
         result.outcomes.append(CheckOutcome("scan", ex))
         return
 
-    run("scan", "yara-python", yara_info.version,
-        lambda: fc.collect_yara(path, rule_files, max_files=max_files, exclude=exclude), fc.yara_to_evidence)
+    def collect() -> dict:
+        if "cap" in pending:               # already scanned while hashing
+            return pending.pop("cap")
+        return fc.collect_yara(path, rule_files, max_files=max_files, exclude=exclude, walk=walk())
+
+    run("scan", "yara-python", yara_info.version, collect, fc.yara_to_evidence)

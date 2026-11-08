@@ -50,6 +50,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   modifiers incl. windash, base64offset, re, cidr, fieldref) mapped to Sysmon,
   Security, live host and Linux evidence; three ATAD rules in rules/sigma.
 - R1 counts a logon that appears in both auth.log and the journal once.
+- `atad files`: the folder is listed once, and when hash and YARA both run each file is
+  read once for both (half the disk reading on big folders; same records as before).
 - Progress counter for long steps (listing, hashing, YARA, processes, log records, Sigma
   rules), shown only in a terminal and erased afterwards; `ATAD_NO_PROGRESS=1` turns it off.
 - Auto-start entries: shortcuts (.lnk) are read with a [MS-SHLLINK] parser and judged by

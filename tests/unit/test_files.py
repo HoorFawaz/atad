@@ -243,3 +243,45 @@ def test_raw_capture_is_json(case, evidence_dir):
     r = run_files(case, evidence_dir, ["info"])
     raw = json.loads((case.path / r.outcome("info").execution.raw_ref).read_text(encoding="utf-8"))
     assert raw["check"] == "info" and raw["files_seen"] == 5
+
+
+# ------------------------------------------------- one read for hash + YARA
+
+
+@needs_yara
+def test_hash_and_scan_together_match_separate_passes(evidence_dir):
+    rules = fc.find_rule_files(RULES)
+    hashes = fc.collect_hashes(evidence_dir)
+    scans = fc.collect_yara(evidence_dir, rules)
+    h2, s2 = fc.collect_hash_and_scan(evidence_dir, rules)
+    assert h2["records"] == hashes["records"]
+    assert s2["records"] == scans["records"]
+    assert s2["read_once_with"] == "hash"
+
+
+@needs_yara
+def test_big_files_are_hashed_but_not_kept_for_yara(tmp_path):
+    (tmp_path / "big.bin").write_bytes(b"x" * 5000)
+    (tmp_path / "small.txt").write_text("ATAD-DEMO-SIMULATED-DROPPER")
+    h, s = fc.collect_hash_and_scan(tmp_path, fc.find_rule_files(RULES), max_scan_bytes=1000)
+    assert {r["path"].split("/")[-1].split("\\")[-1]: r.get("size") for r in h["records"]} == \
+        {"big.bin": 5000, "small.txt": 27}
+    by = {r["path"].split("/")[-1].split("\\")[-1]: r for r in s["records"]}
+    assert "skipped" in by["big.bin"] and by["small.txt"]["matches"]
+
+
+@needs_yara
+def test_runner_reads_each_file_once(case, evidence_dir, monkeypatch):
+    opened = []
+    real_open = open
+
+    def counting_open(file, *a, **k):
+        opened.append(str(file))
+        return real_open(file, *a, **k)
+    monkeypatch.setattr(fc, "open", counting_open, raising=False)
+    r = run_files(case, evidence_dir, ["hash", "scan"], excluded=["info"], rules=RULES)
+    assert {o.execution.status for o in r.outcomes if o.check != "info"} == {ExecutionStatus.SUCCESS}
+    files = set(opened)
+    assert len(opened) == len(files)                     # no file opened twice
+    scan = r.outcome("scan")
+    assert scan.capture["read_once_with"] == "hash" and scan.evidence

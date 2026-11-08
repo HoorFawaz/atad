@@ -144,9 +144,10 @@ def hash_file(path: Path) -> dict[str, Any]:
 
 
 def collect_hashes(
-    root: Path, max_files: int = DEFAULT_MAX_FILES, exclude: tuple[Path, ...] = ()
+    root: Path, max_files: int = DEFAULT_MAX_FILES, exclude: tuple[Path, ...] = (),
+    walk: WalkResult | None = None,
 ) -> dict[str, Any]:
-    walk = walk_files(root, max_files, exclude)
+    walk = walk or walk_files(root, max_files, exclude)
     records = []
     with Progress("hashing files", total=len(walk.files)) as bar:
         for p in walk.files:
@@ -243,9 +244,10 @@ def file_info(path: Path) -> dict[str, Any]:
 
 
 def collect_info(
-    root: Path, max_files: int = DEFAULT_MAX_FILES, exclude: tuple[Path, ...] = ()
+    root: Path, max_files: int = DEFAULT_MAX_FILES, exclude: tuple[Path, ...] = (),
+    walk: WalkResult | None = None,
 ) -> dict[str, Any]:
-    walk = walk_files(root, max_files, exclude)
+    walk = walk or walk_files(root, max_files, exclude)
     records = []
     with Progress("reading file details", total=len(walk.files)) as bar:
         for p in walk.files:
@@ -272,6 +274,84 @@ def find_rule_files(rules: Path) -> list[Path]:
     return []
 
 
+def _yara_record(p: Path, data: bytes, matches: Any) -> dict[str, Any]:
+    return {
+        "path": str(p),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "matches": [
+            {
+                "rule": m.rule,
+                "namespace": m.namespace,
+                "tags": list(m.tags),
+                "meta": {k: str(v) for k, v in m.meta.items()},
+                "strings": sorted({s.identifier for s in m.strings}),
+            }
+            for m in matches
+        ],
+    }
+
+
+def collect_hash_and_scan(
+    root: Path,
+    rule_files: list[Path],
+    *,
+    max_files: int = DEFAULT_MAX_FILES,
+    max_scan_bytes: int = DEFAULT_MAX_SCAN_BYTES,
+    timeout: int = DEFAULT_YARA_TIMEOUT,
+    exclude: tuple[Path, ...] = (),
+    walk: WalkResult | None = None,
+    compiled: Any = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Hashes and YARA results from ONE read of each file.
+
+    Gives exactly the same records as collect_hashes + collect_yara, but a big
+    folder is read once instead of twice. Files above max_scan_bytes are only
+    hashed (streamed); smaller ones are kept in memory for YARA, one at a time.
+    """
+    compiled = compiled or compile_rules(rule_files)
+    walk = walk or walk_files(root, max_files, exclude)
+    hashes, scans = [], []
+    for p in track(walk.files, "hashing + YARA scan", len(walk.files), note=lambda f: f.name):
+        md5, sha1, sha256 = (hashlib.md5(usedforsecurity=False), hashlib.sha1(usedforsecurity=False),
+                             hashlib.sha256())
+        size, parts, keep = 0, [], True
+        try:
+            with open(p, "rb") as fh:
+                for chunk in iter(lambda fh=fh: fh.read(_CHUNK), b""):
+                    sha256.update(chunk)
+                    sha1.update(chunk)
+                    md5.update(chunk)
+                    size += len(chunk)
+                    if keep:
+                        if size > max_scan_bytes:
+                            keep, parts = False, []
+                        else:
+                            parts.append(chunk)
+        except OSError as exc:
+            err = exc.strerror or str(exc)
+            hashes.append({"path": str(p), "error": err})
+            scans.append({"path": str(p), "error": err})
+            continue
+        hashes.append({"path": str(p), "sha256": sha256.hexdigest(), "sha1": sha1.hexdigest(),
+                       "md5": md5.hexdigest(), "size": size})
+        if not keep:
+            scans.append({"path": str(p), "skipped": f"larger than {max_scan_bytes} bytes"})
+            continue
+        data = b"".join(parts)
+        try:
+            matches = compiled.match(data=data, timeout=timeout)
+        except Exception as exc:  # noqa: BLE001 - yara.TimeoutError / yara.Error (module loaded lazily)
+            scans.append({"path": str(p), "error": f"yara: {exc}"})
+            continue
+        scans.append(_yara_record(p, data, matches))
+    scan_cap = _capture("scan", root, walk, scans)
+    scan_cap["rule_files"] = [str(r) for r in rule_files]
+    scan_cap["read_once_with"] = "hash"
+    hash_cap = _capture("hash", root, walk, hashes)
+    hash_cap["read_once_with"] = "scan"
+    return hash_cap, scan_cap
+
+
 def compile_rules(rule_files: list[Path]) -> Any:
     """Compile YARA rules. Raises ImportError if yara-python is missing,
     or ``yara.SyntaxError`` for bad rules."""
@@ -291,9 +371,10 @@ def collect_yara(
     max_scan_bytes: int = DEFAULT_MAX_SCAN_BYTES,
     timeout: int = DEFAULT_YARA_TIMEOUT,
     exclude: tuple[Path, ...] = (),
+    walk: WalkResult | None = None,
 ) -> dict[str, Any]:
     compiled = compile_rules(rule_files)
-    walk = walk_files(root, max_files, exclude)
+    walk = walk or walk_files(root, max_files, exclude)
     records = []
     for p in track(walk.files, "YARA scan", len(walk.files), note=lambda f: f.name):
         try:
@@ -310,20 +391,7 @@ def collect_yara(
         except Exception as exc:  # noqa: BLE001 - yara.TimeoutError / yara.Error (module loaded lazily)
             records.append({"path": str(p), "error": f"yara: {exc}"})
             continue
-        records.append({
-            "path": str(p),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "matches": [
-                {
-                    "rule": m.rule,
-                    "namespace": m.namespace,
-                    "tags": list(m.tags),
-                    "meta": {k: str(v) for k, v in m.meta.items()},
-                    "strings": sorted({s.identifier for s in m.strings}),
-                }
-                for m in matches
-            ],
-        })
+        records.append(_yara_record(p, data, matches))
     cap = _capture("scan", root, walk, records)
     cap["rule_files"] = [str(p) for p in rule_files]
     return cap
