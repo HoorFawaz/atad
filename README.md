@@ -186,7 +186,7 @@ OSI-approved open source license.
 | Selling ATAD, bundling it in a paid or closed product, or offering it as a paid service | Written permission required |
 
 Reports and evidence produced with ATAD belong to their user.
-For commercial licensing, contact the ATAD Team through https://github.com/HoorFawaz or https://github.com/danahfawaz.
+For commercial licensing: Atad.Team@outlook.com
 
 Third-party components and their licenses are listed in [NOTICE](NOTICE).
 Use of the ATAD name and logo is covered by [TRADEMARKS.md](TRADEMARKS.md).

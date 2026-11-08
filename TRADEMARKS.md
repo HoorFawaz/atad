@@ -30,7 +30,7 @@ SHA-256 hashes published with every release.
 
 ## Contact
 
-The ATAD Team: https://github.com/HoorFawaz · https://github.com/danahfawaz
+The ATAD Team: Atad.Team@outlook.com
 
 ---
 
