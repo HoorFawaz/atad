@@ -52,6 +52,10 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - R1 counts a logon that appears in both auth.log and the journal once.
 - `atad files`: the folder is listed once, and when hash and YARA both run each file is
   read once for both (half the disk reading on big folders; same records as before).
+- S2 flags only disguised programs (a program behind a document/image/media extension, or
+  a runnable double extension); other type mismatches become a note. Found on a real
+  laptop: 31 harmless files (.pages, .nupkg, .xpi, Git/npm scripts, .node addons) were flagged.
+- The demo YARA rules no longer run in real scans unless given with `--rules`.
 - Progress counter for long steps (listing, hashing, YARA, processes, log records, Sigma
   rules), shown only in a terminal and erased afterwards; `ATAD_NO_PROGRESS=1` turns it off.
 - Auto-start entries: shortcuts (.lnk) are read with a [MS-SHLLINK] parser and judged by

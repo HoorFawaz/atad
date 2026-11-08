@@ -100,8 +100,9 @@ Without `--case`, `atad net` creates a case and authorizes its `--target`.
 With `--case`, the target must already be in that case's scope
 (`atad scope add`). Public addresses need `--allow-public`.
 
-YARA rules are read from `--rules`, `$ATAD_RULES` or `./rules`.
-`rules/demo/` holds demo rules that match **simulated** markers only.
+YARA rules are read from `--rules`, `$ATAD_RULES` or `./rules`. The demo rules in
+`rules/demo/` are used only by `atad demo` or when given with `--rules rules/demo`;
+add real rule sets (your own or published ones) to `rules/` for real scans.
 Install YARA support with `pip install -e ".[yara]"`.
 
 Imported `.evtx` files are copied into the case (read-only, hashed) and atad

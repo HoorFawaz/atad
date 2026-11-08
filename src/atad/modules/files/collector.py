@@ -180,9 +180,16 @@ _SIGNATURES: list[tuple[bytes, int, str, tuple[str, ...]]] = [
     (b"#!", 0, "Script with interpreter line", (".sh", ".py", ".pl", "")),
 ]
 
-# Extensions that look harmless to a user; a PE behind them is a classic trick.
-_DOCUMENT_LIKE = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt",
-                  ".jpg", ".jpeg", ".png", ".gif", ".rtf", ".csv"}
+# Extensions that look harmless to a user (documents, images, media). A program
+# behind one of them is the classic disguise.
+_DOCUMENT_LIKE = {".pdf", ".doc", ".docx", ".docm", ".xls", ".xlsx", ".xlsm", ".ppt", ".pptx",
+                  ".odt", ".ods", ".odp", ".txt", ".rtf", ".csv", ".jpg", ".jpeg", ".png", ".gif",
+                  ".bmp", ".webp", ".heic", ".tif", ".tiff", ".mp3", ".mp4", ".m4a", ".wav", ".mov",
+                  ".avi", ".mkv"}
+# Extensions Windows will run on a double-click.
+_RUNNABLE = {".exe", ".scr", ".com", ".pif", ".bat", ".cmd", ".vbs", ".vbe", ".js", ".jse",
+             ".wsf", ".hta", ".ps1", ".lnk", ".msi", ".cpl", ".jar"}
+_PROGRAM_TYPES = ("PE executable", "ELF executable")
 
 
 def detect_type(head: bytes) -> tuple[str, tuple[str, ...]]:
@@ -234,11 +241,18 @@ def file_info(path: Path) -> dict[str, Any]:
         info["hidden"] = name.startswith(".")
     info["executable_bit"] = bool(st.st_mode & stat.S_IXUSR) if not sys.platform.startswith("win") else None
 
+    # Only a disguised PROGRAM is suspicious. Other mismatches are common and
+    # harmless (.pages / .nupkg / .xpi are ZIP files, npm and Git scripts start
+    # with "#!", Node addons are DLLs named .node, phone photos keep a wrong
+    # extension), so they are kept as a note, not a reason.
     reasons: list[str] = []
-    if typical_exts and ext not in typical_exts:
-        reasons.append(f"extension '{ext or '(none)'}' does not match content ({label})")
-    if label.startswith("PE executable") and double_ext:
-        reasons.append(f"executable with double extension '{name}'")
+    is_program = label.startswith(_PROGRAM_TYPES)
+    if is_program and ext in _DOCUMENT_LIKE:
+        reasons.append(f"program ({label}) disguised with the extension '{ext}'")
+    if double_ext and (ext in _RUNNABLE or is_program):
+        reasons.append(f"runnable file with a double extension '{name}'")
+    if typical_exts and ext not in typical_exts and not reasons:
+        info["type_note"] = f"extension '{ext or '(none)'}' differs from the content ({label})"
     info["suspicious_reasons"] = reasons
     return info
 

@@ -185,8 +185,15 @@ def _scan_plan(path: Path, rules: Path | None) -> tuple[list[Path] | None, str |
         return None, f"yara-python not installed ({yara_info.reason})", yara_info
     rules_path = rules if rules is not None else default_rules_path()
     rule_files = fc.find_rule_files(rules_path)
+    if rules is None:
+        # The demo rules are for `atad demo` only: one of them matches ordinary
+        # text and gave a false positive on a real laptop. Use --rules to run them.
+        rule_files = [f for f in rule_files
+                      if "demo" not in f.relative_to(rules_path).parts[:-1]] if rules_path.is_dir() else rule_files
     if not rule_files:
-        return None, f"no YARA rules (.yar/.yara) found at {rules_path}", yara_info
+        return None, (f"no YARA rules configured (add rule files to {rules_path} or use --rules; "
+                      "the demo rules run only with --rules rules/demo)"
+                      if rules is None else f"no YARA rules (.yar/.yara) found at {rules_path}"), yara_info
     return rule_files, None, yara_info
 
 

@@ -30,7 +30,7 @@ def test_files_all_creates_case(tmp_path, ev):
     assert r.exit_code == 0, r.output
     assert "Created CASE-001" in r.output
     assert "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" in r.output
-    assert "does not match content" in r.output
+    assert "disguised with the extension '.pdf'" in r.output
 
 
 def test_files_only_into_existing_case(tmp_path, ev):

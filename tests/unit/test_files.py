@@ -116,7 +116,7 @@ def test_detect_type(head, label):
 
 def test_extension_mismatch_and_double_extension(evidence_dir):
     by_name = {r["name"]: r for r in fc.collect_info(evidence_dir)["records"]}
-    assert any("does not match content" in x for x in by_name["report.pdf"]["suspicious_reasons"])
+    assert any("disguised with the extension '.pdf'" in x for x in by_name["report.pdf"]["suspicious_reasons"])
     assert any("double extension" in x for x in by_name["invoice.pdf.exe"]["suspicious_reasons"])
     assert by_name["real.pdf"]["suspicious_reasons"] == []
     assert by_name["abc.txt"]["suspicious_reasons"] == []
@@ -285,3 +285,52 @@ def test_runner_reads_each_file_once(case, evidence_dir, monkeypatch):
     assert len(opened) == len(files)                     # no file opened twice
     scan = r.outcome("scan")
     assert scan.capture["read_once_with"] == "hash" and scan.evidence
+
+
+# Files from a real Windows 11 laptop that the first version of S2 flagged.
+# None of them is a disguised program, so none may be suspicious.
+REAL_FALSE_POSITIVES = {
+    "Proposal.pages": b"PK\x03\x04" + b"\x00" * 40,                       # Apple Pages = ZIP
+    "Selenium.WebDriver.4.1.0.nupkg": b"PK\x03\x04" + b"\x00" * 40,       # NuGet = ZIP
+    "screenshots@mozilla.org.xpi": b"PK\x03\x04" + b"\x00" * 40,          # Firefox add-on = ZIP
+    "pre-commit.sample": b"#!/bin/sh\nexit 0\n",                          # Git hook
+    "vite.ps1": b"#!/usr/bin/env pwsh\n$basedir=Split-Path\n",           # npm shim
+    "cli.mjs": b"#!/usr/bin/env node\nimport x from 'y'\n",
+    "rolldown-binding.win32-x64-msvc.node": b"MZ\x90\x00" + b"\x00" * 60,  # Node addon (a DLL)
+    "ENG103_Assignment_3": b"PK\x03\x04" + b"\x00" * 40,                  # .docx saved without extension
+    "IMG_1765.PNG": b"\xff\xd8\xff\xe0" + b"\x00" * 40,                   # JPEG named .PNG
+}
+# Real disguises that must still be caught.
+REAL_DISGUISES = {
+    "photo.jpg": b"MZ\x90\x00" + b"\x00" * 60,
+    "invoice.pdf.exe": b"MZ\x90\x00" + b"\x00" * 60,
+    "statement.pdf.vbs": b"WScript.Echo 1\n",
+    "cv.docx.lnk": b"L\x00\x00\x00" + b"\x00" * 60,
+}
+
+
+def test_only_disguised_programs_are_suspicious(tmp_path):
+    for name, data in {**REAL_FALSE_POSITIVES, **REAL_DISGUISES}.items():
+        (tmp_path / name).write_bytes(data)
+    by = {r["name"]: r for r in fc.collect_info(tmp_path)["records"]}
+    for name in REAL_FALSE_POSITIVES:
+        assert by[name]["suspicious_reasons"] == [], (name, by[name]["suspicious_reasons"])
+    assert "type_note" in by["Proposal.pages"] and "type_note" in by["vite.ps1"]
+    for name in REAL_DISGUISES:
+        assert by[name]["suspicious_reasons"], name
+
+
+def test_demo_yara_rules_are_not_used_by_default(case, tmp_path, monkeypatch):
+    import shutil
+
+    rules = tmp_path / "rules"
+    shutil.copytree(RULES / "demo", rules / "demo")
+    monkeypatch.setenv("ATAD_RULES", str(rules))
+    (tmp_path / "ev").mkdir()
+    (tmp_path / "ev" / "node.js").write_text("// run: powershell -enc  AAAA\n")
+    r = run_files(case, tmp_path / "ev", ["scan"])
+    scan = r.outcome("scan")
+    assert scan.execution.status is ExecutionStatus.UNAVAILABLE
+    assert "no YARA rules configured" in scan.execution.error
+    r = run_files(case, tmp_path / "ev", ["scan"], rules=rules / "demo")      # explicit: allowed
+    assert r.outcome("scan").execution.status is ExecutionStatus.SUCCESS
