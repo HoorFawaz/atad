@@ -38,8 +38,17 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   with precision / recall per rule saved as JSON (M8).
 - R4 links within one source only between timed events, not between two records of
   the same object (e.g. a file's hash record and its YARA match).
-- Rule S3: auto-start entry (Run key, Startup folder, service) that runs a program from a
-  user-writable folder — MITRE ATT&CK T1547.001 / T1543.003; medium severity, low confidence.
+- Rule S3: suspicious auto-start entry (Windows Run key, Startup folder, service; Linux
+  systemd, cron, rc.local, shell files, authorized_keys) that runs a program from a
+  user-writable folder or downloads code; medium severity, low confidence.
+- Linux (M9): `atad log` reads auth.log/secure, the systemd journal and auditd
+  (live and import, format detected by content); `atad host startup` reads systemd,
+  cron, rc.local, risky shell start-up lines and authorized_keys; routes with
+  `ip -j route`; extra DNS records with `dig`; Linux tools in `atad doctor`.
+- Sigma rules (M10): `atad correlate --sigma PATH` runs Sigma rules (conditions,
+  modifiers incl. windash, base64offset, re, cidr, fieldref) mapped to Sysmon,
+  Security, live host and Linux evidence; three ATAD rules in rules/sigma.
+- R1 counts a logon that appears in both auth.log and the journal once.
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

@@ -1,0 +1,38 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+title: PowerShell Started Hidden With an Encoded Command
+id: 6f1f0d64-3c1b-4f53-9c0e-5a8b6a2d71e1
+status: experimental
+description: PowerShell launched with a hidden window and a base64-encoded command, a common way to run a stager without showing anything to the user.
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://attack.mitre.org/techniques/T1027/
+author: Hoor Fawaz (ATAD)
+date: 2026-11-08
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.defense-evasion
+    - attack.t1027
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection_img:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+    selection_hidden:
+        CommandLine|contains|windash:
+            - ' -w hidden'
+            - ' -windowstyle hidden'
+    selection_enc:
+        CommandLine|contains|windash:
+            - ' -e '
+            - ' -ec '
+            - ' -enc '
+            - ' -encodedcommand '
+    condition: all of selection_*
+falsepositives:
+    - Administration or deployment scripts that hide their window
+level: high

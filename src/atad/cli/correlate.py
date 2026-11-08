@@ -40,17 +40,34 @@ def correlate(
     case: str = CaseOpt,
     config: Optional[Path] = typer.Option(
         None, "--config", help="YAML file with thresholds and disabled_rules."),
+    sigma: Optional[Path] = typer.Option(
+        None, "--sigma", help="Sigma rule file or folder (default: $ATAD_SIGMA or ./rules/sigma)."),
+    no_sigma: bool = typer.Option(False, "--no-sigma", help="Do not run Sigma rules."),
 ) -> None:
     """Link the evidence in a case into findings and rebuild its timeline."""
     cfg = load_config(config)
+    if sigma is not None and not sigma.exists():
+        raise ValidationError(f"Sigma rules not found: {sigma}")
     oc = state.manager().open_case(case)
-    r = run_correlation(oc.repo, cfg)
+    r = run_correlation(oc.repo, cfg, sigma=None if no_sigma else (sigma or "auto"))
 
     typer.secho(f"{oc.case.id} — correlation", bold=True)
     typer.echo(f"  evidence: {r.evidence_count}   indicators: {r.ioc_count}   "
                f"previous rule findings replaced: {r.removed}")
     if r.disabled:
         typer.echo(f"  disabled rules: {', '.join(r.disabled)}")
+    if r.sigma is not None:
+        sg = r.sigma
+        typer.echo(f"  Sigma: {len(sg.load.rules)} rule(s) loaded from {sg.load.files} file(s), "
+                   f"{len(sg.load.skipped)} skipped, {sg.matched_rules} matched")
+        reasons: dict[str, int] = {}
+        for _, why in sg.load.skipped:
+            key = why.split(":")[0] if why.startswith("unsupported modifier") else why
+            reasons[key] = reasons.get(key, 0) + 1
+        for why, n in sorted(reasons.items(), key=lambda x: -x[1])[:5]:
+            typer.echo(f"    skipped {n}: {why}")
+    else:
+        typer.echo("  Sigma: no rules (use --sigma PATH, $ATAD_SIGMA or ./rules/sigma)")
     typer.echo()
     if not r.findings:
         typer.secho("  No findings. Nothing in the evidence matched a rule.", fg=typer.colors.GREEN)

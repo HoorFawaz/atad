@@ -94,13 +94,26 @@ same; only the adapter changes.
 | Persistence / startup | Run keys, Startup folders, auto-start services (scheduled tasks: post-MVP) | systemd units, cron, `/etc/rc.local`, shell profiles, `authorized_keys` |
 | File hashing / YARA | hashlib / yara-python | hashlib / yara-python |
 
-Linux log subset planned for M9:
+Linux log subset (M9, implemented):
 
-| Source | Events |
-|---|---|
-| auth.log / secure | SSH accepted / failed logins, `sudo`, `useradd` |
-| journal | sshd, sudo, systemd service start |
-| auditd | `execve` (process), `connect` (network) |
+| Source | Events | Evidence |
+|---|---|---|
+| auth.log / secure (syslog lines) | SSH accepted / failed logins, `sudo`, failed `sudo`, `useradd` | logon, log_event |
+| journal (`journalctl -o json`) | the same, plus systemd "Started …service" | logon, log_event |
+| auditd (raw audit.log) | `execve` (records grouped by serial, hex arguments decoded), `connect` (x86_64 / aarch64, IPv4 / IPv6) | process, network_connection |
+
+Time handling: journal and audit records carry exact UTC times. Classic syslog
+lines have no year and no zone, so the year comes from the file's modification
+time (with the December → January roll-over handled) and the zone from this
+machine (live) or `--timezone` (import, UTC by default). Every record stores its
+`time_basis`, and the CLI warns when times were assumed. A logon written to both
+auth.log and the journal is counted once by R1.
+
+Linux persistence (`atad host startup`): systemd units in /etc and user unit
+folders (T1543.002), /etc/crontab, /etc/cron.d and user crontabs (T1053.003),
+/etc/rc.local (T1037.004), shell start-up files — only lines that download and
+run code, open a reverse shell or start from a user-writable folder (T1546.004) —
+and SSH authorized_keys (T1098.004). Rule S3 covers them.
 
 ---
 
@@ -269,6 +282,38 @@ The test suite includes a labelled scenario with decoys for every rule and
 checks precision and recall on it.
 
 ---
+
+## 7.2 Sigma rules (M10)
+
+`atad correlate` also runs Sigma rules from `--sigma PATH`, `$ATAD_SIGMA`, or
+`./rules/sigma` (ATAD ships three of its own there). Public SigmaHQ rules are not
+bundled; download them and point `--sigma` at the folder.
+
+| Supported | Not supported (rule skipped, reason shown) |
+|---|---|
+| maps (AND), lists of maps (OR), keyword lists; wildcards `*` `?`; `null` | aggregations in the condition (`\| count()`) |
+| modifiers `contains`, `startswith`, `endswith`, `all`, `re` (`i`, `m`, `s`), `cidr`, `windash`, `base64`, `base64offset`, `fieldref`, `exists`, `lt`/`lte`/`gt`/`gte`, `cased` | correlation rules (Sigma v2 meta rules) |
+| conditions: `and`, `or`, `not`, `( )`, `N of x*`, `all of x*`, `… of them`, lists | other modifiers (e.g. `utf16le`) |
+
+Log sources are mapped to ATAD evidence (`src/atad/sigma/fields.py`): Windows
+process_creation = Sysmon 1, Security 4688 (with the Sysmon field names, as in the
+SigmaHQ pipelines) and running processes; network_connection = Sysmon 3 and live
+connections; file_event = Sysmon 11; service security / sysmon; Linux
+process_creation and network_connection = auditd execve / connect; service auditd,
+auth, sshd, syslog, sudo = the Linux log records.
+
+One finding per rule and host, rule id `SIGMA`. Severity follows the rule's
+`level`; confidence follows its `status` (stable high, test medium, experimental
+low); `low` and `informational` rules give observations, not suspicious findings,
+so they do not feed R5. Every finding names the rule's author, as the Detection
+Rule License 1.1 used by SigmaHQ requires for match output, plus its ATT&CK tags,
+known false positives and the rule file's SHA-256.
+
+Measured on the SigmaHQ repository (commit 53b90df, Nov 2026): 1,769 rules loaded,
+0 skipped, in 1.5 s; matching about 1 ms per evidence record. On the simulated
+demo case they matched the encoded PowerShell, the double-extension dropper (file
+creation and execution) and the new account; the backup-script decoy matched only
+"Change PowerShell Policies to an Insecure Level", which is what that rule detects.
 
 ## 7.1 Reports and exports (M7)
 
@@ -462,8 +507,8 @@ reported as `unavailable`, never as an error that stops the run.
 | M6 IOC & Correlation | IOC lists, rules R1–R5, timeline | Labelled dataset: precision/recall reported |
 | M7 Reports | JSON + HTML report; timeline export as CSV / JSONL for Timeline Explorer, Timesketch and Elastic | Report built from demo case; every finding links to evidence; exports open in Timeline Explorer |
 | M8 Triage & Demo | Profiles, `atad triage`, demo dataset, metrics | Full demo scenario runs end to end |
-| M9 Linux | Linux adapters from §3.1 (ip, dig, journalctl, auth.log, auditd, persistence locations) | Same modules and commands work on Linux; Linux fixtures parse; `atad doctor` shows Linux tools instead of "n/a" |
-| M10 Detection rules | Sigma rule support for log evidence (the standard used by Hayabusa and Chainsaw) | Public Sigma rules load and match labelled sample logs |
+| M9 Linux ✓ | Linux adapters from §3.1 (ip, dig, journalctl, auth.log, auditd, persistence locations) | Same modules and commands work on Linux; Linux fixtures parse; `atad doctor` shows Linux tools instead of "n/a" |
+| M10 Detection rules ✓ | Sigma rule support for log evidence (the standard used by Hayabusa and Chainsaw) | Public Sigma rules load and match labelled sample logs |
 
 ---
 
@@ -480,5 +525,5 @@ How tools used in real SOC / DFIR work are built, and what atad takes from them:
 | Works without extra infrastructure (no SIEM/ELK) | Chainsaw | Everything runs locally, offline; SQLite per case |
 | Collection packed with a collection log | Velociraptor offline collector | Case folder with `logs/execution.jsonl`; `atad export case` packs it into one zip with SHA256SUMS.txt |
 | Timeline export for analyst tools | Hayabusa (CSV/JSON/JSONL) | `atad export timeline`: CSV and JSONL with the Timesketch fields (`message`, `datetime`, `timestamp_desc`), `@timestamp` for Elastic |
-| Sigma detection rules | Hayabusa, Chainsaw | Planned in M10 |
+| Sigma detection rules | Hayabusa, Chainsaw | `atad correlate --sigma`: all 1,769 SigmaHQ rules for Windows process/network/file/Security and Linux load with no skips (§7.2) |
 | Automated tests and builds | All maintained projects | GitHub Actions: tests on Windows + Linux, release build on tag |

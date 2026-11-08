@@ -44,6 +44,7 @@ RULE_DESCRIPTIONS = {
     "R3": "A file that matched YARA was executed",
     "R4": "A finding's key indicator also seen in another source or event type",
     "R5": "Several suspicious findings close in time on one host (hypothesis)",
+    "SIGMA": "A Sigma detection rule matched (the rule's title, author and file are in the finding)",
 }
 STATUS_LABEL = {
     "success": "ran",

@@ -40,7 +40,7 @@ def demo() -> None:
         typer.secho("    YARA is not installed: YARA-based findings cannot be produced "
                     "(pip install \"atad[yara]\").", fg=typer.colors.YELLOW)
 
-    result = correlate(oc.repo)
+    result = correlate(oc.repo, sigma=None)   # the labels cover ATAD's own rules
     m = evaluate(result.findings, b.scenario["expected"],
                  available={"yara"} if b.yara_available else set())
 

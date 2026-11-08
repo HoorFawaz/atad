@@ -46,3 +46,14 @@ installed by the user, ATAD runs the user's own copy:
 Nmap      Nmap Public Source License (https://nmap.org/npsl/)
 Sysmon    Microsoft Sysinternals license
 ping, wevtutil   part of Microsoft Windows
+
+-----------------------------------------------------------------------
+Test fixtures (in the source repository only, not in releases)
+-----------------------------------------------------------------------
+
+tests/fixtures/sigmahq/ holds seven Sigma rules copied unchanged from
+the SigmaHQ project (https://github.com/SigmaHQ/sigma), licensed under
+the Detection Rule License 1.1
+(https://github.com/SigmaHQ/Detection-Rule-License). Each rule keeps
+its author field; the source of each file is listed in that folder's
+README.md.

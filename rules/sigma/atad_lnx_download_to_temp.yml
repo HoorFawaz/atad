@@ -1,0 +1,30 @@
+# Copyright (C) 2026 Hoor Fawaz
+# SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
+title: Download Into a Temporary Folder With curl or wget
+id: 2b7d6a0e-91a4-4c6e-8f0b-3e4d5c6a7b81
+status: experimental
+description: curl or wget saving a file into /tmp, /dev/shm or /var/tmp, where attackers often drop tools because any user can write there.
+references:
+    - https://attack.mitre.org/techniques/T1105/
+author: Hoor Fawaz (ATAD)
+date: 2026-11-08
+tags:
+    - attack.command-and-control
+    - attack.t1105
+logsource:
+    product: linux
+    category: process_creation
+detection:
+    selection_tool:
+        Image|endswith:
+            - '/curl'
+            - '/wget'
+    selection_target:
+        CommandLine|contains:
+            - '/tmp/'
+            - '/dev/shm/'
+            - '/var/tmp/'
+    condition: all of selection_*
+falsepositives:
+    - Install scripts that download into /tmp before moving files into place
+level: medium

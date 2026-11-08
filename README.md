@@ -73,12 +73,18 @@ atad net --target 192.168.1.0/24 --only scan --profile quick
 atad net scan --target 192.168.1.15 --ports 22,80,443,3389
 atad net interfaces
 
+# Linux (run as root on the machine itself)
+atad log --hours 48                                # auth.log/secure, journal, auditd
+atad log import --path ./copied-logs --source-host web01 --timezone +03:00
+atad host startup                                  # systemd, cron, rc.local, shell files, authorized_keys
+
 # Indicators and correlation
 atad ioc load --case CASE-001 --path .\iocs.txt     # .txt (one per line) or .csv
 atad ioc list --case CASE-001
 atad ioc check --case CASE-001                     # which indicators appear (read-only)
 atad correlate --case CASE-001                     # link evidence into findings + timeline
 atad correlate --case CASE-001 --config .\correlation.yaml
+atad correlate --case CASE-001 --sigma .\sigma\rules  # SigmaHQ or your own Sigma rules
 atad findings --case CASE-001 --min-severity high
 atad findings --case CASE-001 --show FND-0004      # why, and the evidence behind it
 atad timeline --case CASE-001 --findings-only
@@ -117,6 +123,14 @@ r5_min_findings: 3      # suspicious findings on one host
 r5_window_minutes: 15
 disabled_rules: [S2]
 ```
+
+Sigma rules run during `atad correlate` from `--sigma`, `$ATAD_SIGMA` or
+`./rules/sigma`. Public SigmaHQ rules (Detection Rule License 1.1) are not bundled:
+download them from https://github.com/SigmaHQ/sigma. Every finding names the
+rule's author, as that licence requires.
+
+On Linux, syslog lines without a year or time zone use the file's date and
+`--timezone` (import) or this machine's zone (live); the evidence records which.
 
 `atad report` hashes every raw file again. If one changed or is missing, the
 report says so at the top and the command exits with code 4.

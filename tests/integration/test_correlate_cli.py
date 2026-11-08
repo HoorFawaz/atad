@@ -91,3 +91,23 @@ def test_bad_config_and_missing_finding(tmp_path):
     assert r.exit_code == 2
     r = _run(home, "timeline", "--case", "CASE-001")
     assert "Timeline is empty" in r.output
+
+
+def test_correlate_sigma_options(tmp_path, monkeypatch):
+    from pathlib import Path
+    monkeypatch.setattr(lr, "iter_evtx_xml", _fake)
+    home = tmp_path / "cases"
+    evtx = tmp_path / "Security.evtx"
+    evtx.write_bytes(b"ElfFile\x00" + b"\x00" * 64)
+    _run(home, "log", "import", "--path", str(evtx), "--source-host", "LAB-WS-01")
+    rules = Path(__file__).resolve().parents[1] / "fixtures" / "sigmahq"
+    r = _run(home, "correlate", "-c", "CASE-001", "--sigma", str(rules))
+    assert r.exit_code == 0, r.output
+    assert "Sigma: 7 rule(s) loaded from 8 file(s)" not in r.output       # README is not a rule
+    assert "Sigma: 7 rule(s) loaded from 7 file(s), 0 skipped" in r.output
+    assert "Sigma: Suspicious Encoded PowerShell Command Line" in r.output
+    assert "Sigma: Local User Creation" in r.output
+    r = _run(home, "correlate", "-c", "CASE-001", "--no-sigma")
+    assert "Sigma: no rules" in r.output and "Sigma: Suspicious" not in r.output
+    r = _run(home, "correlate", "-c", "CASE-001", "--sigma", str(tmp_path / "missing"))
+    assert r.exit_code == 2 and "not found" in r.output

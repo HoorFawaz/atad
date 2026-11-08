@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from atad.cases.repository import CaseRepository
 from atad.correlation import rules as R
@@ -27,6 +28,7 @@ class CorrelationReport:
     evidence_count: int = 0
     ioc_count: int = 0
     disabled: tuple[str, ...] = ()
+    sigma: object | None = None          # atad.sigma.engine.SigmaRun when rules ran
 
     @property
     def by_rule(self) -> Counter:
@@ -57,13 +59,18 @@ def build_timeline(view: R.CaseView, findings: list[Finding]) -> list[dict]:
     return events
 
 
-def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None) -> CorrelationReport:
+AUTO = "auto"
+
+
+def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None,
+              sigma: Path | str | None = AUTO) -> CorrelationReport:
+    """``sigma``: a rule file or folder, ``"auto"`` ($ATAD_SIGMA or ./rules/sigma), or None."""
     cfg = cfg or CorrelationConfig()
     case = repo.get_case()
     view = R.CaseView(case.id, repo.list_evidence(), repo.list_iocs())
     on = lambda rule: rule not in cfg.disabled_rules  # noqa: E731
 
-    removed = repo.delete_findings_by_rules(list(R.ALL_RULES))
+    removed = repo.delete_findings_by_rules(list(R.ALL_RULES) + ["SIGMA"])
 
     base: list[R.RuleResult] = []
     if on("IOC"):
@@ -86,6 +93,15 @@ def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None) -> Cor
     stored = repo.add_findings_many([r.finding for r in base])
     keyed = [(f, r.keys) for f, r in zip(stored, base)]
 
+    sigma_run = None
+    if sigma == AUTO:
+        from atad.sigma.engine import default_rules_path
+        sigma = default_rules_path()
+    if sigma is not None and on("SIGMA"):
+        from atad.sigma.engine import run_sigma
+        sigma_run = run_sigma(case.id, view.evidence, Path(sigma))
+        stored += repo.add_findings_many(sigma_run.findings)
+
     extra: list[Finding] = []
     if on("R4"):
         extra += R.rule_pivot(view, keyed)
@@ -101,4 +117,5 @@ def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None) -> Cor
     return CorrelationReport(findings=stored, removed=removed,
                              timeline_events=len(timeline),
                              evidence_count=len(view.evidence),
-                             ioc_count=len(view.iocs), disabled=cfg.disabled_rules)
+                             ioc_count=len(view.iocs), disabled=cfg.disabled_rules,
+                             sigma=sigma_run)
