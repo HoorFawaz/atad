@@ -9,8 +9,8 @@ description = "ATAD (عَتاد) — Advanced Toolkit for Attack & Defense"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    { name = "Hoor Fawaz", email = "hoorfawaz.it@gmail.com" },
-    { name = "Danah Fawaz", email = "danah.fawazz@gmail.com" },
+    { name = "Hoor Fawaz" },
+    { name = "Danah Fawaz" },
 ]
 license = "LicenseRef-ATAD-SAL-1.0"
 license-files = ["LICENSE", "LICENSE.ar"]
