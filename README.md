@@ -8,6 +8,7 @@
   <img alt="Windows | Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0C0E11?labelColor=242932">
   <img alt="Read-only" src="https://img.shields.io/badge/by%20design-read--only-F2A93B?labelColor=242932">
   <a href="LICENSE"><img alt="Source-available" src="https://img.shields.io/badge/license-source--available-0C0E11?labelColor=242932"></a>
+  <a href="https://archive.softwareheritage.org/browse/origin/https://github.com/HoorFawaz/atad/"><img alt="Archived in Software Heritage" src="https://img.shields.io/badge/Software%20Heritage-archived-0C0E11?labelColor=242932"></a>
 </p>
 
 <p align="center">
@@ -305,6 +306,7 @@ date and `--timezone` (import) or this machine's zone (live); every record notes
 | [Architecture](docs/architecture.md) | design decisions, evidence model, rule catalogue with sources, CLI design |
 | [Risk register](docs/risks.md) | 18 rated risks, the control for each, and the test that checks it |
 | [Changelog](CHANGELOG.md) | what changed in each version |
+| [Software Heritage archive](https://archive.softwareheritage.org/browse/origin/https://github.com/HoorFawaz/atad/) | a permanent copy of the source code and its history |
 
 ## Tests
 
