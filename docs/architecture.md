@@ -230,7 +230,7 @@ Single-source rules (each turns one kind of suspicious evidence into a finding):
 | YARA Rule matched | A `yara_match` record | the rule's `meta: severity`, else medium | suspicious |
 | S1 Encoded PowerShell | Process command line with `-enc` / `-EncodedCommand` (and short forms) | medium / medium | suspicious |
 | S2 Disguised file | File whose real type does not match its extension, or a double extension | medium / medium | suspicious |
-| S3 Suspicious auto-start | Run key, Startup folder entry or auto-start service whose program is in a user-writable folder (Temp, AppData\\Roaming, Downloads, Users\\Public; /tmp on Linux). MITRE ATT&CK T1547.001 / T1543.003. Some legitimate per-user apps install there, so it stays low confidence until R4 links it to another finding | medium / low | suspicious |
+| S3 Suspicious auto-start | Run key, Startup folder entry or auto-start service whose program is in a user-writable folder (Temp, AppData\\Roaming, Downloads, Users\\Public; /tmp on Linux). MITRE ATT&CK T1547.001 / T1543.003. A shortcut (.lnk) is judged by its target, read from the file ([MS-SHLLINK]: LinkInfo local path, environment block, relative path); an unreadable shortcut is not flagged. Unquoted paths with spaces are resolved like Windows (shortest existing prefix). Some legitimate per-user apps install there, so it stays low confidence until R4 links it to another finding | medium / low | suspicious |
 
 Correlation rules (link evidence across events and sources):
 

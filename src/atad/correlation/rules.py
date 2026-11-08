@@ -288,7 +288,8 @@ def rule_suspicious_autostart(view: CaseView) -> list[RuleResult]:
         entries = "; ".join(f"{_AUTOSTART.get(x.data.get('type'), (label,))[0]} '{x.data.get('name')}'"
                             f" in {x.data.get('location')}" for x in evs)
         cmd = e.data.get("command")
-        rationale = (f"{entries} on {e.host} starts {e.data.get('executable')}"
+        via = f" through the shortcut {e.data['shortcut']}" if e.data.get("shortcut") else ""
+        rationale = (f"{entries} on {e.host} starts {e.data.get('executable')}{via}"
                      + (f" (command: {cmd[:160]})" if cmd and cmd != e.data.get("executable") else "")
                      + " — " + "; ".join(e.data["suspicious_reasons"]) + ". Entries that start "
                      "automatically from a folder any user can write to, or that download and run "

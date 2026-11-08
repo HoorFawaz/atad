@@ -50,6 +50,10 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   modifiers incl. windash, base64offset, re, cidr, fieldref) mapped to Sysmon,
   Security, live host and Linux evidence; three ATAD rules in rules/sigma.
 - R1 counts a logon that appears in both auth.log and the journal once.
+- Auto-start entries: shortcuts (.lnk) are read with a [MS-SHLLINK] parser and judged by
+  the program they start, and unquoted paths with spaces are resolved the way Windows does
+  (found on a real Windows 11 laptop: Webex Run key and Office "Send to OneNote" were
+  wrongly flagged).
 - SHA-1 is now computed for files and read from Sysmon hashes.
 - NOTICE with third-party licenses (full texts shipped in every release), TRADEMARKS.md,
   and a copyright / SPDX line in every source file.

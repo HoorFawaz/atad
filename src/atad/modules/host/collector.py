@@ -249,18 +249,64 @@ RUN_KEYS = [
 ]
 
 
-def executable_from_command(command: str | None) -> str | None:
-    """Program path from a command line such as ``"C:\\a b\\x.exe" -arg``."""
+_RUNNABLE = r"exe|dll|bat|cmd|ps1|vbs|vbe|js|jse|wsf|hta|com|scr|pif|msi|lnk|url"
+
+
+def executable_from_command(command: str | None, exists=os.path.isfile) -> str | None:
+    """Program path from a command line such as ``"C:\\a b\\x.exe" -arg``.
+
+    An unquoted path with spaces is resolved the way Windows does it: the
+    shortest prefix that names an existing file wins (``C:\\Program`` then
+    ``C:\\Program Files\\...``). Without such a file, a known program
+    extension marks the end of the path.
+    """
     if not command:
         return None
-    c = os.path.expandvars(command.strip())
+    from atad.modules.host.lnk import expand_windows_vars
+
+    c = expand_windows_vars(command.strip())
     if c.startswith('"'):
         end = c.find('"', 1)
         return c[1:end] if end > 1 else None
-    m = re.match(r"(?i)^(.+?\.(exe|dll|bat|cmd|ps1|vbs|js|com|scr))(\s|,|$)", c)
+    parts = c.split(" ")
+    for i in range(1, len(parts) + 1):
+        candidate = " ".join(parts[:i]).rstrip(",")
+        for name in (candidate, candidate + ".exe"):
+            if name and exists(name):
+                return name
+    m = re.match(rf"(?i)^(.+?\.({_RUNNABLE}))(\s|,|$)", c)
     if m:
         return m.group(1)
     return c.split()[0] if c.split() else None
+
+
+def assess_startup_item(item: dict[str, Any], read_shortcut=None) -> dict[str, Any]:
+    """Resolve a shortcut to the program it starts, then judge that program.
+
+    A shortcut's own location says nothing (Startup folders are always under
+    the user profile); what matters is where its target lives.
+    """
+    from atad.modules.host.lnk import read_lnk
+
+    read_shortcut = read_shortcut or read_lnk
+    exe = item.get("executable") or ""
+    if exe.lower().endswith(".lnk"):
+        item["shortcut"] = exe
+        target = read_shortcut(exe)
+        if target and target.path:
+            item["executable"] = target.path
+            item["shortcut_target_source"] = target.source
+            if target.arguments:
+                item["shortcut_arguments"] = target.arguments
+            exe = target.path
+        else:
+            item["shortcut_unresolved"] = True
+            item["suspicious_reasons"] = []
+            return item
+    low = exe.lower().replace("/", "\\")
+    item["suspicious_reasons"] = (["starts from a user-writable folder"]
+                                  if any(d in low for d in _USER_WRITABLE) else [])
+    return item
 
 
 def _registry_items() -> tuple[list[dict], list[str]]:
@@ -329,12 +375,7 @@ def collect_startup() -> dict[str, Any]:
     """Windows persistence locations: Run keys, Startup folders, auto-start services."""
     reg, reg_err = _registry_items()
     svc, svc_err = _service_items()
-    items = reg + _startup_folder_items() + svc
-    for it in items:
-        exe = it.get("executable") or ""
-        it["suspicious_reasons"] = (["starts from a user-writable folder"]
-                                    if any(d in exe.lower().replace("/", "\\") for d in _USER_WRITABLE)
-                                    else [])
+    items = [assess_startup_item(it) for it in reg + _startup_folder_items() + svc]
     return {"check": "startup", "count": len(items), "errors": reg_err + svc_err, "records": items}
 
 
@@ -357,6 +398,9 @@ def startup_to_evidence(cap: dict, ctx: ParseContext) -> list[Evidence]:
         flag = " — SUSPICIOUS: " + "; ".join(r["suspicious_reasons"]) if r["suspicious_reasons"] else ""
         label = STARTUP_LABELS.get(r["type"], r["type"])
         target = PureWindowsPath(r.get("executable") or r.get("command") or "?").name
+        if r.get("shortcut"):
+            target = (f"{PureWindowsPath(r['shortcut']).name} -> {target}" if not r.get("shortcut_unresolved")
+                      else f"{PureWindowsPath(r['shortcut']).name} (target not readable)")
         if r["type"] == "authorized_keys":
             target = f"{r.get('key_type')} key for {r.get('user')}"
         out.append(Evidence(
