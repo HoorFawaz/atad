@@ -10,7 +10,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 - `atad files`: SHA-256/MD5, metadata, real file type, YARA scanning (M3).
 - `atad log`: Security and Sysmon EVTX import, live export, search (M4).
 - `atad host` and `atad net`: processes, connections, users, startup; ping, Nmap, DNS (M5).
-- Single-file executable build, release package with rules and SHA256SUMS, GitHub Actions.
+- Single-file executable build, release package with rules and SHA256SUMS, GitHub Actions
+  (tests on Windows and Linux, Python 3.11–3.13, plus a ruff lint job).
 - `--max-files`, `--max-events`, `--max-hosts` options.
 - License: ATAD Source-Available License 1.0 (Arabic text official).
 - `atad ioc load|list|check`: IOC lists (.txt / .csv, defanged values, CIDR ranges),

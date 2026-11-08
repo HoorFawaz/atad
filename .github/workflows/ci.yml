@@ -9,6 +9,19 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install ruff
+        # pinned so a new ruff release cannot fail the build with new default rules
+        run: python -m pip install "ruff==0.16.9"
+      - name: Lint
+        run: ruff check src tests packaging
+
   test:
     strategy:
       fail-fast: false

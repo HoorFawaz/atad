@@ -154,6 +154,7 @@ environment variable).
 
 ```bash
 pytest
+ruff check src tests packaging    # code checks (also run by CI on every push)
 ```
 
 ## License
