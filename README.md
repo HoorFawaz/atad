@@ -166,7 +166,7 @@ ruff check src tests packaging    # code checks (also run by CI on every push)
 | | Part · الجزء | GitHub |
 |---|---|---|
 | **Hoor Fawaz** · حور فواز | Core, correlation rules, IOC, reports, license and build · الأساس، قواعد الربط، المؤشرات، التقارير، الرخصة والبناء | [@HoorFawaz](https://github.com/HoorFawaz) |
-| **Danah Fawaz** · دانه فواز | Logs, host, files, network, Sigma, triage and demo · السجلات، الجهاز، الملفات، الشبكة، Sigma، الفرز والعرض التجريبي | [@danahfawaz](https://github.com/danahfawaz) |
+| **Danah Fawaz** · دانة فواز | Logs, host, files, network, Sigma, triage and demo · السجلات، الجهاز، الملفات، الشبكة، Sigma، الفرز والعرض التجريبي | [@danahfawaz](https://github.com/danahfawaz) |
 
 ATAD is owned jointly by the ATAD Team. · عَتاد ملكية مشتركة لفريق عَتاد.
 
