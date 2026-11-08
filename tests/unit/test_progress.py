@@ -31,3 +31,11 @@ def test_env_switch_turns_it_off(monkeypatch):
     with pg.Progress("x", stream=out) as bar:
         bar.advance()
     assert out.getvalue() == ""
+
+
+def test_stage_lines_only_on_a_terminal(capsys):
+    out = io.StringIO()
+    pg.stage("writing the report", stream=out, force=True)
+    assert out.getvalue() == "  ... writing the report\n"
+    pg.stage("hidden")                                 # pytest's stderr is not a terminal
+    assert capsys.readouterr().err == ""

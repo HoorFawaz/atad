@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from atad.cases.manager import OpenCase
+from atad.core.progress import stage
 from atad.correlation.config import CorrelationConfig
 from atad.correlation.engine import CorrelationReport, correlate
 from atad.evidence.models import Confidence, Execution, ExecutionStatus
@@ -117,6 +118,7 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
                                        if load.report.rejected else "")))
 
     if "host" in modules:
+        stage("host: processes, connections, users, start-up entries")
         r = run_host(oc, HOST_CHECKS)
         st, note = _status([o.execution for o in r.outcomes])
         res.steps.append(StepResult("host", st, note, len(r.evidence)))
@@ -124,6 +126,7 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
         res.steps.append(StepResult("host", "skipped", "left out (--only/--skip)"))
 
     if "logs" in modules:
+        stage(f"logs: last {hours or profile.log_hours} hour(s)")
         r = run_log_live(oc, checks_for_os(), hours=hours or profile.log_hours)
         st, note = _status([o.execution for o in r.outcomes])
         res.steps.append(StepResult("logs", st, note or f"last {hours or profile.log_hours} h",
@@ -132,6 +135,7 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
         res.steps.append(StepResult("logs", "skipped", "left out (--only/--skip)"))
 
     if "files" in modules and path is not None:
+        stage(f"files: {path}")
         r = run_files(oc, path, FILE_CHECKS, rules=rules)
         st, note = _status([o.execution for o in r.outcomes])
         res.steps.append(StepResult("files", st, note or str(path), len(r.evidence)))
@@ -141,6 +145,7 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
 
     if "net" in modules:
         checks = list(profile.net_checks) if target else ["interfaces"]
+        stage("network: " + ", ".join(checks))
         r = run_net(oc, checks, target=target, profile=profile.scan_profile,
                     allow_public=allow_public)
         st, note = _status([o.execution for o in r.outcomes])
@@ -150,11 +155,15 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
     else:
         res.steps.append(StepResult("net", "skipped", "left out (--only/--skip)"))
 
+    stage("correlating the evidence")
     res.correlation = correlate(oc.repo, correlation)
+    stage("writing the report (and re-checking every raw file's hash)")
     res.reports, res.report_data = write_reports(oc, tlp=tlp)
     if profile.exports:
+        stage("exporting the timeline")
         written, _ = export_timeline(oc)
         res.exports += [p for p, _ in written]
+        stage("packing the case into a zip")
         zip_path, _, _ = export_case(oc)
         res.exports.append(zip_path)
     return res

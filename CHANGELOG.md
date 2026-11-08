@@ -57,7 +57,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
   laptop: 31 harmless files (.pages, .nupkg, .xpi, Git/npm scripts, .node addons) were flagged.
 - The demo YARA rules no longer run in real scans unless given with `--rules`.
 - Progress counter for long steps (listing, hashing, YARA, processes, log records, Sigma
-  rules), shown only in a terminal and erased afterwards; `ATAD_NO_PROGRESS=1` turns it off.
+  rules), and a line naming each triage stage, shown only in a terminal; `ATAD_NO_PROGRESS=1`
+  turns them off.
 - Auto-start entries: shortcuts (.lnk) are read with a [MS-SHLLINK] parser and judged by
   the program they start, and unquoted paths with spaces are resolved the way Windows does
   (found on a real Windows 11 laptop: Webex Run key and Office "Send to OneNote" were

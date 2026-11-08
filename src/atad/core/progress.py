@@ -78,3 +78,12 @@ def track(items: Iterable[T], label: str, total: int | None = None,
         for item in items:
             bar.advance(note=note(item) if note else "")
             yield item
+
+
+def stage(message: str, *, stream=None, force: bool | None = None) -> None:
+    """Say which step is starting ("... writing the report"), so a long step
+    without a counter is never silent. Same rules as Progress: terminal only."""
+    stream = stream or sys.stderr
+    if _enabled(stream) if force is None else force:
+        stream.write(f"  ... {message}\n")
+        stream.flush()
