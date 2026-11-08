@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 NS = "{http://schemas.microsoft.com/win/2004/08/events/event}"
 
@@ -41,8 +42,8 @@ def parse_system_time(value: str) -> datetime | None:
     except ValueError:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _find(parent: ET.Element, name: str) -> ET.Element | None:
@@ -143,7 +144,7 @@ def iter_evtx_xml(path: Path, stats: ReadStats, max_events: int = DEFAULT_MAX_EV
                 rec = next(records)
             except StopIteration:
                 return
-            except Exception as exc:  # damaged record: keep going
+            except Exception as exc:  # noqa: BLE001 - parsers raise many types on damaged records
                 stats.records_read += 1
                 _note_error(stats, exc)
                 continue
@@ -164,7 +165,7 @@ def iter_evtx_xml(path: Path, stats: ReadStats, max_events: int = DEFAULT_MAX_EV
             stats.records_read += 1
             try:
                 yield record.xml()
-            except Exception as exc:  # corrupted record: keep going
+            except Exception as exc:  # noqa: BLE001 - corrupted record: keep going
                 _note_error(stats, exc)
 
 

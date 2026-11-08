@@ -1,11 +1,11 @@
 # Copyright (C) 2026 Hoor Fawaz
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
-from atad.cases.manager import CASE_SUBDIRS, CaseManager
+from atad.cases.manager import CASE_SUBDIRS
 from atad.core.exceptions import CaseNotFoundError, ScopeError, ValidationError
 from atad.evidence.integrity import sha256_bytes, sha256_file, verify_file
 from atad.evidence.models import (
@@ -61,7 +61,7 @@ def test_open_case_rejects_path_tricks(manager):
 
 
 def test_empty_name_rejected_before_disk_write(manager):
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError, match="case name is required"):
         manager.create_case("   ")
     assert manager.list_cases() == []
 
@@ -86,22 +86,22 @@ def test_scope_rejects_public(case, manager):
 
 
 def _ev(case_id, **kw):
-    base = dict(
-        case_id=case_id,
-        kind=EvidenceKind.NETWORK_CONNECTION,
-        source_module=SourceModule.HOST,
-        source_tool="psutil",
-        collection_mode=CollectionMode.LOCAL,
-        host="LAB-WS-01",
-        event_time=datetime(2026, 11, 7, 10, 6, tzinfo=timezone.utc),
-        summary="powershell.exe -> 10.66.0.9:443",
-        data={"pid": 4120, "remote_port": 443, "note": "اختبار"},
-        observables=[
+    base = {
+        "case_id": case_id,
+        "kind": EvidenceKind.NETWORK_CONNECTION,
+        "source_module": SourceModule.HOST,
+        "source_tool": "psutil",
+        "collection_mode": CollectionMode.LOCAL,
+        "host": "LAB-WS-01",
+        "event_time": datetime(2026, 11, 7, 10, 6, tzinfo=UTC),
+        "summary": "powershell.exe -> 10.66.0.9:443",
+        "data": {"pid": 4120, "remote_port": 443, "note": "اختبار"},
+        "observables": [
             Observable(type="ip", value="10.66.0.9"),
             Observable(type="pid", value="4120"),
         ],
-        simulated=True,
-    )
+        "simulated": True,
+    }
     base.update(kw)
     return Evidence(**base)
 

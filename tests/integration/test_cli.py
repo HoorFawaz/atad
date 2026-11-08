@@ -50,3 +50,11 @@ def test_errors_have_exit_codes_not_tracebacks(tmp_path):
 def test_version():
     r = runner.invoke(app, ["--version"])
     assert r.exit_code == 0 and "atad 0.1.0" in r.output
+
+
+def test_empty_case_name_is_a_clean_error(tmp_path):
+    from typer.testing import CliRunner
+
+    from atad.cli.app import app
+    r = CliRunner().invoke(app, ["--home", str(tmp_path / "c"), "case", "new", "--name", "   "])
+    assert r.exit_code == 2 and "case name is required" in r.output and "pydantic" not in r.output

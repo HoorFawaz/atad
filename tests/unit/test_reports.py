@@ -98,7 +98,7 @@ def test_written_reports_are_recorded_and_read_only(scenario):
     assert [w.format for w in written] == ["html", "json"]
     rows = scenario.repo.list_reports()
     assert len(rows) == 2
-    for w, row in zip(written, rows):
+    for w, row in zip(written, rows, strict=True):
         assert row["path"] == w.relative_path and row["sha256"] == sha256_file(w.path)
         assert not os.access(w.path, os.W_OK) or os.geteuid() == 0
         assert not (w.path.stat().st_mode & stat.S_IWUSR)
@@ -129,10 +129,10 @@ def test_timeline_csv_for_timesketch(scenario):
 
 
 def test_csv_blocks_spreadsheet_formulas():
-    row = {k: "" for k in ex.FIELDS}
+    row = dict.fromkeys(ex.FIELDS, "")
     row.update(datetime="2026-11-07T10:00:00+00:00", timestamp=1, message="=HYPERLINK(\"x\")",
                host="@evil", observables="-cmd", timestamp_desc="Event Time")
-    out = list(csv.DictReader(io.StringIO(ex.to_csv([row]))))[0]
+    out = next(iter(csv.DictReader(io.StringIO(ex.to_csv([row])))))
     assert out["message"].startswith("'=") and out["host"] == "'@evil"
     assert out["observables"] == "'-cmd" and out["datetime"].startswith("2026")
 

@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 
 from atad.cli.context import get_or_create_case, handle_errors
@@ -26,9 +24,9 @@ CaseOpt = typer.Option(None, "--case", "-c", help="Case id (a new case is create
 @handle_errors
 def host_all(
     ctx: typer.Context,
-    only: Optional[str] = typer.Option(None, "--only", help=f"Only these checks: {','.join(CHECKS)}"),
-    skip: Optional[str] = typer.Option(None, "--skip", help="All checks except these."),
-    case: Optional[str] = CaseOpt,
+    only: str | None = typer.Option(None, "--only", help=f"Only these checks: {','.join(CHECKS)}"),
+    skip: str | None = typer.Option(None, "--skip", help="All checks except these."),
+    case: str | None = CaseOpt,
 ) -> None:
     """Run all host checks (or a chosen set). Run atad on the suspect machine."""
     if ctx.invoked_subcommand is not None:
@@ -39,7 +37,7 @@ def host_all(
 
 def _single(check: str):
     @handle_errors
-    def command(case: Optional[str] = CaseOpt) -> None:
+    def command(case: str | None = CaseOpt) -> None:
         _execute([check], [], case)
     return command
 

@@ -230,7 +230,7 @@ def _scan(case: OpenCase, vt: ValidatedTarget, addresses: list[str],
     if rec.execution.status is ExecutionStatus.SUCCESS and rec.result is not None:
         try:
             parsed = nc.parse_nmap_xml(rec.result.stdout)
-        except Exception as exc:  # bad or partial XML
+        except Exception as exc:  # noqa: BLE001 - bad or partial XML
             ex = rec.execution.model_copy(update={"status": ExecutionStatus.FAILED,
                                                   "error": f"could not read Nmap output: {exc}"})
             case.repo.finish_execution(ex)

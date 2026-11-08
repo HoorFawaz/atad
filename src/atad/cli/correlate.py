@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -38,9 +37,9 @@ def _line(f: Finding) -> None:
 @handle_errors
 def correlate(
     case: str = CaseOpt,
-    config: Optional[Path] = typer.Option(
+    config: Path | None = typer.Option(
         None, "--config", help="YAML file with thresholds and disabled_rules."),
-    sigma: Optional[Path] = typer.Option(
+    sigma: Path | None = typer.Option(
         None, "--sigma", help="Sigma rule file or folder (default: $ATAD_SIGMA or ./rules/sigma)."),
     no_sigma: bool = typer.Option(False, "--no-sigma", help="Do not run Sigma rules."),
 ) -> None:
@@ -86,8 +85,8 @@ def correlate(
 @handle_errors
 def findings(
     case: str = CaseOpt,
-    show: Optional[str] = typer.Option(None, "--show", help="Show one finding in full."),
-    severity: Optional[Severity] = typer.Option(None, "--min-severity",
+    show: str | None = typer.Option(None, "--show", help="Show one finding in full."),
+    severity: Severity | None = typer.Option(None, "--min-severity",
                                                 help="Only this severity or higher."),
 ) -> None:
     """List the findings of a case, or show one with its evidence."""
@@ -130,7 +129,7 @@ def findings(
 @handle_errors
 def timeline(
     case: str = CaseOpt,
-    host: Optional[str] = typer.Option(None, "--host", help="Only events from this host."),
+    host: str | None = typer.Option(None, "--host", help="Only events from this host."),
     findings_only: bool = typer.Option(False, "--findings-only", help="Only finding markers."),
     limit: int = typer.Option(200, "--limit", help="Maximum events to show."),
 ) -> None:

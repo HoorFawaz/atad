@@ -25,10 +25,10 @@ from __future__ import annotations
 
 import ipaddress
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import PureWindowsPath
-from typing import Iterable
 
 from atad.correlation.config import CorrelationConfig
 from atad.evidence.models import (
@@ -45,7 +45,7 @@ from atad.modules.host.collector import ENCODED_POWERSHELL
 from atad.modules.ioc.parser import url_host
 
 BASE_RULES = ("IOC", "YARA", "S1", "S2", "S3", "R1", "R2", "R3")
-ALL_RULES = BASE_RULES + ("R4", "R5")
+ALL_RULES = (*BASE_RULES, "R4", "R5")
 
 _SEV_ORDER = [Severity.INFO, Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
 _CONF_TO_SEV = {Confidence.LOW: Severity.LOW, Confidence.MEDIUM: Severity.MEDIUM,
@@ -64,7 +64,7 @@ def short(value: str, width: int = 40) -> str:
 
 
 def fmt_iso(t: datetime) -> str:
-    return t.astimezone(timezone.utc).isoformat()
+    return t.astimezone(UTC).isoformat()
 
 
 def fmt_time(t: datetime | None) -> str:
@@ -110,7 +110,7 @@ class CaseView:
     def kind(self, *kinds: EvidenceKind) -> list[Evidence]:
         return [e for e in self.evidence if e.kind in kinds]
 
-    def ioc_index(self) -> "IocIndex":
+    def ioc_index(self) -> IocIndex:
         return IocIndex(self.iocs)
 
 
@@ -361,7 +361,7 @@ def rule_bruteforce(view: CaseView, cfg: CorrelationConfig) -> list[RuleResult]:
                 continue
             start, end = burst[0].event_time, burst[-1].event_time
             targets = Counter(f.data.get("user") or "?" for f in burst)
-            accounts = ", ".join(f"{u} ×{n}" for u, n in targets.most_common(3))
+            accounts = ", ".join(f"{u} ×{n}" for u, n in targets.most_common(3))  # noqa: RUF001
             if len(targets) > 3:
                 accounts += f" and {len(targets) - 3} more"
             head = (f"{len(burst)} failed logons from {ip} on {burst[0].host} between "

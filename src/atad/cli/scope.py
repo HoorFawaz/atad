@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 
 from atad.cli.context import handle_errors, state
@@ -23,7 +21,7 @@ def add(
     allow_public: bool = typer.Option(
         False, "--allow-public", help="Allow a public address (only with written authorization)."
     ),
-    max_hosts: Optional[int] = typer.Option(
+    max_hosts: int | None = typer.Option(
         None, "--max-hosts", help="Largest range accepted (default 1024, up to 65536)."
     ),
 ) -> None:

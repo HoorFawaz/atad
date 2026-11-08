@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Optional
 
 import typer
 
@@ -16,13 +15,13 @@ from atad.modules.checks import select_checks
 from atad.modules.logs.evtx_reader import DEFAULT_MAX_EVENTS
 from atad.modules.logs.mapping import KEYWORDS
 from atad.modules.logs.runner import (
+    DEFAULT_HOURS,
     LINUX_CHECKS,
     WINDOWS_CHECKS,
-    DEFAULT_HOURS,
     LogRunResult,
+    checks_for_os,
     run_log_import,
     run_log_live,
-    checks_for_os,
     search_logs,
     summarize,
 )
@@ -50,11 +49,11 @@ _COLOR = {
 @handle_errors
 def log_live(
     ctx: typer.Context,
-    only: Optional[str] = typer.Option(
+    only: str | None = typer.Option(
         None, "--only", help=f"Only these logs. Windows: {','.join(WINDOWS_CHECKS)}; Linux: {','.join(LINUX_CHECKS)}"),
-    skip: Optional[str] = typer.Option(None, "--skip", help="All logs except these."),
+    skip: str | None = typer.Option(None, "--skip", help="All logs except these."),
     hours: int = typer.Option(DEFAULT_HOURS, "--hours", help="How far back to collect."),
-    case: Optional[str] = CaseOpt,
+    case: str | None = CaseOpt,
     max_events: int = MaxEventsOpt,
 ) -> None:
     """Collect logs from THIS machine (run atad on the suspect machine, as admin/root)."""
@@ -73,7 +72,7 @@ def log_live(
 def log_import(
     path: str = typer.Option(..., "--path", help="Log file or folder copied from the suspect machine."),
     source_host: str = typer.Option(..., "--source-host", help="Machine the logs came from."),
-    case: Optional[str] = CaseOpt,
+    case: str | None = CaseOpt,
     max_events: int = MaxEventsOpt,
     tz: str = typer.Option("UTC", "--timezone",
                            help="Time zone of syslog lines that have none (UTC, +03:00, Asia/Riyadh)."),

@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 
 from atad.cli.context import get_or_create_case, handle_errors
@@ -38,14 +36,14 @@ MaxHostsOpt = typer.Option(None, "--max-hosts",
 @handle_errors
 def net_all(
     ctx: typer.Context,
-    target: Optional[str] = TargetOpt,
-    only: Optional[str] = typer.Option(None, "--only", help=f"Only these checks: {','.join(CHECKS)}"),
-    skip: Optional[str] = typer.Option(None, "--skip", help="All checks except these."),
-    case: Optional[str] = CaseOpt,
+    target: str | None = TargetOpt,
+    only: str | None = typer.Option(None, "--only", help=f"Only these checks: {','.join(CHECKS)}"),
+    skip: str | None = typer.Option(None, "--skip", help="All checks except these."),
+    case: str | None = CaseOpt,
     profile: str = ProfileOpt,
-    ports: Optional[str] = PortsOpt,
+    ports: str | None = PortsOpt,
     allow_public: bool = PublicOpt,
-    max_hosts: Optional[int] = MaxHostsOpt,
+    max_hosts: int | None = MaxHostsOpt,
 ) -> None:
     """Run all network checks (or a chosen set with --only / --skip)."""
     if ctx.invoked_subcommand is not None:
@@ -56,7 +54,7 @@ def net_all(
 
 @app.command("interfaces")
 @handle_errors
-def interfaces(case: Optional[str] = CaseOpt) -> None:
+def interfaces(case: str | None = CaseOpt) -> None:
     """Network interfaces and addresses of this machine."""
     _execute(["interfaces"], [], None, case, "standard", None, False, None)
 
@@ -65,11 +63,11 @@ def _targeted(check: str):
     @handle_errors
     def command(
         target: str = typer.Option(..., "--target", "-t", help="IP, CIDR range or hostname."),
-        case: Optional[str] = CaseOpt,
+        case: str | None = CaseOpt,
         profile: str = ProfileOpt,
-        ports: Optional[str] = PortsOpt,
+        ports: str | None = PortsOpt,
         allow_public: bool = PublicOpt,
-        max_hosts: Optional[int] = MaxHostsOpt,
+        max_hosts: int | None = MaxHostsOpt,
     ) -> None:
         _execute([check], [], target, case, profile, ports, allow_public, max_hosts)
     return command

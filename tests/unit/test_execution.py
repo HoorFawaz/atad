@@ -62,7 +62,7 @@ def test_output_cap():
 def test_no_shell_injection(tmp_path):
     marker = tmp_path / "pwned"
     payload = f"x; touch {marker} && echo pwned"
-    r = run_command(py("import sys; print(sys.argv[1])") + [payload])
+    r = run_command([*py("import sys; print(sys.argv[1])"), payload])
     assert r.ok
     # The payload arrives as one literal argument and nothing else runs.
     assert r.stdout.decode().strip() == payload

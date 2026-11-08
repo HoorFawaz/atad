@@ -27,6 +27,7 @@ from atad.evidence.models import (
     ExecutionStatus,
     SourceModule,
 )
+from atad.modules.logs import linux_runner as lxr
 from atad.modules.logs.evtx_reader import (
     DEFAULT_MAX_EVENTS,
     ReadStats,
@@ -34,7 +35,6 @@ from atad.modules.logs.evtx_reader import (
     iter_evtx_xml,
     parse_event_xml,
 )
-from atad.modules.logs import linux_runner as lxr
 from atad.modules.logs.linux import detect_format
 from atad.modules.logs.mapping import SECURITY, SUPPORTED, SYSMON, event_to_evidence, is_supported
 from atad.utils.validation import validate_source_host
@@ -102,7 +102,7 @@ def _parse_into_case(case: OpenCase, outcome: SourceOutcome, evtx_path: Path,
             ev = event_to_evidence(event, ctx)
             if ev is not None:
                 batch.append(ev)
-    except Exception as exc:  # unreadable/corrupted file
+    except Exception as exc:  # noqa: BLE001 - unreadable or corrupted file
         stats.errors.append(f"could not read file: {exc}")
     if stats.records_read == 0 and not stats.errors:
         # A parser may return nothing for a damaged file; never let that look
@@ -295,8 +295,9 @@ def run_log_live(case: OpenCase, checks: list[str], *, excluded: list[str] | Non
 
 def search_logs(case: OpenCase, keyword: str) -> list[Evidence]:
     """Search stored log evidence by a named keyword or by free text."""
-    from atad.modules.logs.mapping import KEYWORDS
     import json
+
+    from atad.modules.logs.mapping import KEYWORDS
 
     kw = keyword.strip().lower()
     if not kw:

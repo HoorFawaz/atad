@@ -26,9 +26,10 @@ import base64
 import hashlib
 import ipaddress
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import yaml
 
@@ -38,7 +39,7 @@ Pred = Callable[[Event], bool]
 KNOWN_MODIFIERS = {"contains", "startswith", "endswith", "all", "re", "i", "m", "s", "cidr",
                    "windash", "base64offset", "base64", "fieldref", "exists", "lt", "lte", "gt",
                    "gte", "cased"}
-_DASHES = ["-", "/", "–", "—", "―"]
+_DASHES = ["-", "/", "\u2013", "\u2014", "\u2015"]  # hyphen, slash, en dash, em dash, horizontal bar
 
 
 class SigmaError(ValueError):
@@ -147,7 +148,7 @@ def _value_pred(field_name: str, modifiers: list[str], raw: Any) -> Pred:
 
         def in_net(text: str) -> bool:
             try:
-                return ipaddress.ip_address(text.split("%")[0]) in net
+                return ipaddress.ip_address(text.split("%", maxsplit=1)[0]) in net
             except ValueError:
                 return False
         return _field_test(field_name, in_net)
@@ -243,6 +244,14 @@ def _tokenize(cond: str) -> list[str]:
     return tokens
 
 
+def _both(a: Pred, b: Pred) -> Pred:
+    return lambda e: a(e) and b(e)
+
+
+def _either(a: Pred, b: Pred) -> Pred:
+    return lambda e: a(e) or b(e)
+
+
 def compile_condition(cond: str, selections: dict[str, Pred]) -> Pred:
     if "|" in cond:
         raise SigmaError("aggregation in condition (| count() etc.) is not supported")
@@ -304,7 +313,7 @@ def compile_condition(cond: str, selections: dict[str, Pred]) -> Pred:
         while peek() == "and":
             take()
             right = primary()
-            left = (lambda a, b: lambda e: a(e) and b(e))(left, right)
+            left = _both(left, right)
         return left
 
     def expr() -> Pred:
@@ -312,7 +321,7 @@ def compile_condition(cond: str, selections: dict[str, Pred]) -> Pred:
         while peek() == "or":
             take()
             right = term()
-            left = (lambda a, b: lambda e: a(e) or b(e))(left, right)
+            left = _either(left, right)
         return left
 
     result = expr()

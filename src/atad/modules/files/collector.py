@@ -18,10 +18,11 @@ import hashlib
 import os
 import stat
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from atad.adapters.base import ParseContext
 from atad.evidence.models import (
@@ -183,7 +184,7 @@ def detect_type(head: bytes) -> tuple[str, tuple[str, ...]]:
 
 
 def _utc(ts: float) -> str:
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(ts, tz=UTC).isoformat()
 
 
 def file_info(path: Path) -> dict[str, Any]:
@@ -294,7 +295,7 @@ def collect_yara(
         except OSError as exc:
             records.append({"path": str(p), "error": exc.strerror or str(exc)})
             continue
-        except Exception as exc:  # yara.TimeoutError / yara.Error
+        except Exception as exc:  # noqa: BLE001 - yara.TimeoutError / yara.Error (module loaded lazily)
             records.append({"path": str(p), "error": f"yara: {exc}"})
             continue
         records.append({
@@ -334,19 +335,19 @@ def _capture(check: str, root: Path, walk: WalkResult, records: list[dict]) -> d
 
 
 def _base(ctx: ParseContext, tool: str) -> dict[str, Any]:
-    return dict(
-        case_id=ctx.case_id,
-        source_module=SourceModule.FILES,
-        source_tool=tool,
-        tool_version=ctx.tool_version,
-        collection_mode=ctx.collection_mode,
-        host=ctx.host,
-        host_declared=ctx.host_declared,
-        execution_id=ctx.execution_id,
-        raw_ref=ctx.raw_ref,
-        raw_sha256=ctx.raw_sha256,
-        simulated=ctx.simulated,
-    )
+    return {
+        "case_id": ctx.case_id,
+        "source_module": SourceModule.FILES,
+        "source_tool": tool,
+        "tool_version": ctx.tool_version,
+        "collection_mode": ctx.collection_mode,
+        "host": ctx.host,
+        "host_declared": ctx.host_declared,
+        "execution_id": ctx.execution_id,
+        "raw_ref": ctx.raw_ref,
+        "raw_sha256": ctx.raw_sha256,
+        "simulated": ctx.simulated,
+    }
 
 
 def _error_evidence(rec: dict, ctx: ParseContext, tool: str) -> Evidence:

@@ -66,7 +66,7 @@ def test_evaluate_counts_misses_and_extras(manager):
     m = evaluate(dropped, b.scenario["expected"], available={"yara"} if b.yara_available else set())
     assert [e["rule"] for e in m.fn] == ["S1"] and m.recall < 1.0
     extra = findings[0].model_copy(update={"id": "FND-9999", "title": "something else"})
-    m = evaluate(findings + [extra], b.scenario["expected"],
+    m = evaluate([*findings, extra], b.scenario["expected"],
                  available={"yara"} if b.yara_available else set())
     assert "FND-9999" in [f.id for f in m.fp] and len(m.fp) == 2
 

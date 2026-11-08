@@ -70,7 +70,7 @@ def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None,
     view = R.CaseView(case.id, repo.list_evidence(), repo.list_iocs())
     on = lambda rule: rule not in cfg.disabled_rules  # noqa: E731
 
-    removed = repo.delete_findings_by_rules(list(R.ALL_RULES) + ["SIGMA"])
+    removed = repo.delete_findings_by_rules([*R.ALL_RULES, "SIGMA"])
 
     base: list[R.RuleResult] = []
     if on("IOC"):
@@ -91,7 +91,7 @@ def correlate(repo: CaseRepository, cfg: CorrelationConfig | None = None,
         base += R.rule_flagged_file_executed(view)
 
     stored = repo.add_findings_many([r.finding for r in base])
-    keyed = [(f, r.keys) for f, r in zip(stored, base)]
+    keyed = [(f, r.keys) for f, r in zip(stored, base, strict=True)]
 
     sigma_run = None
     if sigma == AUTO:

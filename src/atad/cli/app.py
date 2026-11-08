@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -56,7 +55,7 @@ def _version(value: bool) -> None:
 
 @app.callback()
 def main(
-    home: Optional[Path] = typer.Option(
+    home: Path | None = typer.Option(
         None, "--home", help="Folder that holds cases (default: $ATAD_HOME or ./cases)."
     ),
     version: bool = typer.Option(

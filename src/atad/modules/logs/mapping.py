@@ -130,21 +130,20 @@ def event_to_evidence(event: dict[str, Any], ctx: ParseContext) -> Evidence | No
     if not is_supported(event):
         return None
     channel, eid, d = event["channel"], event["event_id"], event["data"]
-    short = "Security" if channel == SECURITY else "Sysmon"
-    base = dict(
-        case_id=ctx.case_id,
-        source_module=SourceModule.LOG,
-        source_tool=ctx.tool or "evtx",
-        tool_version=ctx.tool_version,
-        collection_mode=ctx.collection_mode,
-        host=ctx.host,
-        host_declared=ctx.host_declared,
-        execution_id=ctx.execution_id,
-        raw_ref=ctx.raw_ref,
-        raw_sha256=ctx.raw_sha256,
-        simulated=ctx.simulated,
-        event_time=parse_system_time(event.get("time") or ""),
-    )
+    base = {
+        "case_id": ctx.case_id,
+        "source_module": SourceModule.LOG,
+        "source_tool": ctx.tool or "evtx",
+        "tool_version": ctx.tool_version,
+        "collection_mode": ctx.collection_mode,
+        "host": ctx.host,
+        "host_declared": ctx.host_declared,
+        "execution_id": ctx.execution_id,
+        "raw_ref": ctx.raw_ref,
+        "raw_sha256": ctx.raw_sha256,
+        "simulated": ctx.simulated,
+        "event_time": parse_system_time(event.get("time") or ""),
+    }
     data = {
         "channel": channel,
         "event_id": eid,

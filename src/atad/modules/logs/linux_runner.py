@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import shutil
 from collections import Counter
-from datetime import datetime, timedelta, timezone, tzinfo
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from pathlib import Path
-from typing import Iterator
 
 from atad.cases.manager import OpenCase
 from atad.core.exceptions import ValidationError
@@ -40,26 +40,27 @@ def parse_timezone(value: str | None) -> tuple[tzinfo, str]:
     """'UTC', '+03:00', '-0500' or an IANA name such as 'Asia/Riyadh'."""
     v = (value or "UTC").strip()
     if v.upper() in ("UTC", "Z"):
-        return timezone.utc, "UTC"
+        return UTC, "UTC"
     import re
     m = re.fullmatch(r"([+-])(\d{1,2}):?(\d{2})?", v)
     if m:
         delta = timedelta(hours=int(m[2]), minutes=int(m[3] or 0))
         return timezone(delta if m[1] == "+" else -delta), v
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
     try:
-        from zoneinfo import ZoneInfo
         return ZoneInfo(v), v
-    except Exception:
+    except (ZoneInfoNotFoundError, ValueError):
         raise ValidationError(f"unknown time zone {v!r} (use UTC, +03:00 or a name like Asia/Riyadh)") from None
 
 
 def local_timezone() -> tuple[tzinfo, str]:
-    tz = datetime.now().astimezone().tzinfo or timezone.utc
+    tz = datetime.now().astimezone().tzinfo or UTC
     return tz, f"{datetime.now().astimezone().strftime('%z')} (this machine)"
 
 
 def _mtime(path: Path) -> datetime:
-    return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    return datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
 
 
 def parse_file(path: Path, fmt: str, *, file_mtime: datetime, tz: tzinfo, tz_label: str,

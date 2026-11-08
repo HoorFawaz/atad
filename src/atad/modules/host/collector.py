@@ -16,7 +16,7 @@ import platform
 import re
 import socket
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
@@ -37,7 +37,7 @@ ENCODED_POWERSHELL = re.compile(r"(?i)powershell.*\s-(e|ec|en|enc|enco|encod|enc
 def _iso(ts: float | None) -> str | None:
     if not ts:
         return None
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(ts, tz=UTC).isoformat()
 
 
 def _sha256(path: str) -> str | None:
@@ -71,7 +71,7 @@ def collect_info() -> dict[str, Any]:
         "boot_time_utc": _iso(psutil.boot_time()),
         "cpu_count": psutil.cpu_count(),
         "memory_total_bytes": vm.total,
-        "collected_utc": datetime.now(timezone.utc).isoformat(),
+        "collected_utc": datetime.now(UTC).isoformat(),
         "python": sys.version.split()[0],
     }
 
@@ -313,7 +313,7 @@ def _service_items() -> tuple[list[dict], list[str]]:
     for s in psutil.win_service_iter():  # type: ignore[attr-defined]
         try:
             d = s.as_dict()
-        except Exception as exc:
+        except (psutil.Error, OSError) as exc:
             errors.append(f"service {getattr(s, '_name', '?')}: {exc}")
             continue
         if d.get("start_type") != "automatic":

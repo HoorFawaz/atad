@@ -24,10 +24,11 @@ import stat
 import subprocess
 import threading
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import IO, Callable, Sequence
+from typing import IO
 
 from atad.cases.manager import OpenCase
 from atad.core.exceptions import ValidationError
@@ -168,7 +169,7 @@ def run_command(
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
     try:
-        proc = subprocess.Popen(  # noqa: S603 - argument list, shell=False
+        proc = subprocess.Popen(
             argv,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
@@ -365,7 +366,7 @@ def execute_collector(
     try:
         raw = collect()
         status = ExecutionStatus.SUCCESS
-    except Exception as exc:  # a collector bug must not stop the whole run
+    except Exception as exc:  # noqa: BLE001 - a collector bug must not stop the whole run
         status = ExecutionStatus.FAILED
         error = f"{type(exc).__name__}: {exc}"
 

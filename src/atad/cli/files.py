@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -45,12 +44,12 @@ _STATUS_COLOR = {
 @handle_errors
 def files_all(
     ctx: typer.Context,
-    path: Optional[str] = PathOpt,
-    only: Optional[str] = typer.Option(None, "--only", help=f"Run only these checks: {','.join(CHECKS)}"),
-    skip: Optional[str] = typer.Option(None, "--skip", help="Run all checks except these."),
-    case: Optional[str] = CaseOpt,
-    source_host: Optional[str] = HostOpt,
-    rules: Optional[Path] = RulesOpt,
+    path: str | None = PathOpt,
+    only: str | None = typer.Option(None, "--only", help=f"Run only these checks: {','.join(CHECKS)}"),
+    skip: str | None = typer.Option(None, "--skip", help="Run all checks except these."),
+    case: str | None = CaseOpt,
+    source_host: str | None = HostOpt,
+    rules: Path | None = RulesOpt,
     max_files: int = MaxFilesOpt,
 ) -> None:
     """Run all file checks (or a chosen set with --only / --skip)."""
@@ -67,9 +66,9 @@ def _single(check: str):
     @handle_errors
     def command(
         path: str = typer.Option(..., "--path", help="File or folder to investigate."),
-        case: Optional[str] = CaseOpt,
-        source_host: Optional[str] = HostOpt,
-        rules: Optional[Path] = RulesOpt,
+        case: str | None = CaseOpt,
+        source_host: str | None = HostOpt,
+        rules: Path | None = RulesOpt,
         max_files: int = MaxFilesOpt,
     ) -> None:
         _execute(path, [check], [], case, source_host, rules, max_files)

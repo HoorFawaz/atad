@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Hoor Fawaz
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -21,15 +21,15 @@ SHA = "A" * 64
 
 
 def _ev(**kw):
-    base = dict(
-        case_id="CASE-001",
-        kind=EvidenceKind.PROCESS,
-        source_module=SourceModule.HOST,
-        source_tool="psutil",
-        collection_mode=CollectionMode.LOCAL,
-        host="LAB-WS-01",
-        summary="powershell.exe started",
-    )
+    base = {
+        "case_id": "CASE-001",
+        "kind": EvidenceKind.PROCESS,
+        "source_module": SourceModule.HOST,
+        "source_tool": "psutil",
+        "collection_mode": CollectionMode.LOCAL,
+        "host": "LAB-WS-01",
+        "summary": "powershell.exe started",
+    }
     base.update(kw)
     return Evidence(**base)
 
@@ -79,13 +79,13 @@ def test_same_indicator_gives_equal_observables():
 
 def test_naive_datetime_rejected():
     with pytest.raises(ValidationError, match="timezone-aware"):
-        _ev(event_time=datetime(2026, 11, 7, 10, 0))
+        _ev(event_time=datetime(2026, 11, 7, 10, 0))  # noqa: DTZ001 - naive on purpose
 
 
 def test_times_converted_to_utc():
     riyadh = timezone(timedelta(hours=3))
     ev = _ev(event_time=datetime(2026, 11, 7, 13, 0, tzinfo=riyadh))
-    assert ev.event_time == datetime(2026, 11, 7, 10, 0, tzinfo=timezone.utc)
+    assert ev.event_time == datetime(2026, 11, 7, 10, 0, tzinfo=UTC)
     assert ev.event_time.utcoffset() == timedelta(0)
 
 

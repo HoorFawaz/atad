@@ -18,8 +18,8 @@ FIX = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def ctx(**kw):
-    base = dict(case_id="CASE-001", host="192.168.1.15", collection_mode=CollectionMode.NETWORK,
-                simulated=True)
+    base = {"case_id": "CASE-001", "host": "192.168.1.15", "collection_mode": CollectionMode.NETWORK,
+                "simulated": True}
     base.update(kw)
     return ParseContext(**base)
 
@@ -110,7 +110,7 @@ def test_parse_range_and_evidence():
 
 
 def test_parse_rejects_non_nmap():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="not Nmap"):
         nc.parse_nmap_xml(b"<html/>")
 
 

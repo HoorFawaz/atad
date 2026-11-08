@@ -20,7 +20,7 @@ import sqlite3
 import stat
 import tempfile
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from atad import __version__
@@ -48,8 +48,8 @@ def timeline_rows(oc: OpenCase) -> list[dict]:
     by_finding = {f.id: f for f in findings}
     rows = []
     for t in build_timeline(view, findings):
-        when = datetime.fromisoformat(t["event_time"]).astimezone(timezone.utc)
-        row = {k: "" for k in FIELDS}
+        when = datetime.fromisoformat(t["event_time"]).astimezone(UTC)
+        row = dict.fromkeys(FIELDS, "")
         row.update(datetime=when.isoformat(), timestamp=int(when.timestamp() * 1_000_000),
                    message=t["description"], host=t["host"], case_id=oc.case.id)
         if t["evidence_id"]:
@@ -141,7 +141,7 @@ def export_case(oc: OpenCase, now: datetime | None = None) -> tuple[Path, str, i
     files: list[tuple[str, Path]] = []
     for p in sorted(root.rglob("*")):
         rel = p.relative_to(root).as_posix()
-        if not p.is_file() or rel.startswith("exports/") or rel.startswith("case.db"):
+        if not p.is_file() or rel.startswith(("exports/", "case.db")):
             continue
         files.append((rel, p))
 
@@ -164,7 +164,7 @@ def export_case(oc: OpenCase, now: datetime | None = None) -> tuple[Path, str, i
             z.writestr(f"{prefix}/SHA256SUMS.txt", "\n".join(sums) + "\n")
             z.writestr(f"{prefix}/EXPORT.txt",
                        f"Case {oc.case.id} exported by ATAD {__version__} at "
-                       f"{now.astimezone(timezone.utc).isoformat()}.\n"
+                       f"{now.astimezone(UTC).isoformat()}.\n"
                        f"Check the files with: sha256sum -c SHA256SUMS.txt (inside {prefix}/)\n")
     _read_only(target)
     return target, sha256_file(target), len(files)

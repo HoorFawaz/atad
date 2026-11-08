@@ -42,5 +42,5 @@ def is_elevated() -> bool | None:
 
             return bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
         return os.geteuid() == 0
-    except Exception:
+    except (AttributeError, OSError):
         return None

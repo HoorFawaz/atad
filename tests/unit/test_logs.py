@@ -4,7 +4,7 @@
 import os
 import stat
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -12,7 +12,7 @@ import pytest
 from atad.adapters.base import ParseContext, ToolInfo
 from atad.core.exceptions import ValidationError
 from atad.evidence.integrity import sha256_file
-from atad.evidence.models import CollectionMode, EvidenceKind, ExecutionStatus, Observable
+from atad.evidence.models import CollectionMode, EvidenceKind, ExecutionStatus
 from atad.modules.logs import runner as lr
 from atad.modules.logs.evtx_reader import parse_event_xml, parse_system_time
 from atad.modules.logs.mapping import SECURITY, event_to_evidence
@@ -20,8 +20,8 @@ from tests.fixtures import events as fx
 
 
 def ctx(**kw):
-    base = dict(case_id="CASE-001", host="LAB-WS-01", collection_mode=CollectionMode.LOCAL,
-                simulated=True, tool_version="0.8.1")
+    base = {"case_id": "CASE-001", "host": "LAB-WS-01", "collection_mode": CollectionMode.LOCAL,
+                "simulated": True, "tool_version": "0.8.1"}
     base.update(kw)
     return ParseContext(**base)
 
@@ -38,9 +38,9 @@ def obs(e, kind):
 
 
 @pytest.mark.parametrize("raw,expected", [
-    ("2016-07-08 18:12:51.681641+00:00", datetime(2016, 7, 8, 18, 12, 51, 681641, tzinfo=timezone.utc)),
-    ("2026-11-07T10:06:00.1234567Z", datetime(2026, 11, 7, 10, 6, 0, 123456, tzinfo=timezone.utc)),
-    ("2026-11-07 10:06:00", datetime(2026, 11, 7, 10, 6, tzinfo=timezone.utc)),  # EVTX is UTC
+    ("2016-07-08 18:12:51.681641+00:00", datetime(2016, 7, 8, 18, 12, 51, 681641, tzinfo=UTC)),
+    ("2026-11-07T10:06:00.1234567Z", datetime(2026, 11, 7, 10, 6, 0, 123456, tzinfo=UTC)),
+    ("2026-11-07 10:06:00", datetime(2026, 11, 7, 10, 6, tzinfo=UTC)),  # EVTX is UTC
 ])
 def test_parse_system_time(raw, expected):
     assert parse_system_time(raw) == expected
@@ -73,7 +73,7 @@ def test_failed_logon():
     assert e.summary == "Failed logon for LAB\\bob (Network) from 10.66.0.9"
     assert obs(e, "ip") == {"10.66.0.9"} and obs(e, "user") == {"lab\\bob"}
     assert obs(e, "hostname") == {"attacker-pc", "lab-ws-01"}
-    assert e.event_time == datetime(2026, 11, 7, 10, 2, 1, tzinfo=timezone.utc)
+    assert e.event_time == datetime(2026, 11, 7, 10, 2, 1, tzinfo=UTC)
 
 
 def test_success_logon_rdp():

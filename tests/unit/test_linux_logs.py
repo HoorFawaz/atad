@@ -1,14 +1,14 @@
 # Copyright (C) 2026 Hoor Fawaz
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from atad.adapters.base import ParseContext
 from atad.evidence.models import CollectionMode, EvidenceKind
 from atad.modules.logs import linux as lx
 from tests.fixtures import linux_logs as fx
 
-MTIME = datetime(2026, 11, 7, 12, 0, tzinfo=timezone.utc)
+MTIME = datetime(2026, 11, 7, 12, 0, tzinfo=UTC)
 UTC3 = timezone(timedelta(hours=3))
 
 
@@ -19,11 +19,11 @@ def _ctx():
 
 def test_syslog_bsd_lines():
     st = lx.SyslogStats()
-    recs = list(lx.iter_syslog(fx.AUTH_BSD, file_mtime=MTIME, tz=timezone.utc, tz_label="UTC", stats=st))
+    recs = list(lx.iter_syslog(fx.AUTH_BSD, file_mtime=MTIME, tz=UTC, tz_label="UTC", stats=st))
     assert [r.event for r in recs] == ["ssh_failed"] * 5 + ["ssh_accepted", "sudo", "user_created",
                                                             "sudo_failed"]
     assert st.unparsed == 1 and st.unsupported == 2 and st.assumed_times == 11
-    assert recs[0].time == datetime(2026, 11, 7, 10, 1, 2, tzinfo=timezone.utc)
+    assert recs[0].time == datetime(2026, 11, 7, 10, 1, 2, tzinfo=UTC)
     assert "time zone UTC" in recs[0].time_basis
     assert recs[1].fields["invalid_user"] is True and recs[1].fields["user"] == "admin"
     assert recs[6].fields["command_line"] == "/usr/sbin/useradd -m backup"
@@ -32,16 +32,16 @@ def test_syslog_bsd_lines():
 
 def test_syslog_timezone_and_year_rollover():
     recs = list(lx.iter_syslog(fx.AUTH_BSD, file_mtime=MTIME, tz=UTC3, tz_label="+03:00"))
-    assert recs[0].time == datetime(2026, 11, 7, 7, 1, 2, tzinfo=timezone.utc)
-    jan = datetime(2027, 1, 2, tzinfo=timezone.utc)          # December logs read in January
+    assert recs[0].time == datetime(2026, 11, 7, 7, 1, 2, tzinfo=UTC)
+    jan = datetime(2027, 1, 2, tzinfo=UTC)          # December logs read in January
     dec = list(lx.iter_syslog("Dec 31 23:59:00 h sshd[1]: Accepted password for a from 10.0.0.1 port 1 ssh2",
-                              file_mtime=jan, tz=timezone.utc, tz_label="UTC"))
+                              file_mtime=jan, tz=UTC, tz_label="UTC"))
     assert dec[0].time.year == 2026
 
 
 def test_syslog_iso_lines_are_exact():
-    recs = list(lx.iter_syslog(fx.AUTH_ISO, file_mtime=MTIME, tz=timezone.utc, tz_label="UTC"))
-    assert recs[0].time == datetime(2026, 11, 7, 10, 1, 2, 123456, tzinfo=timezone.utc)
+    recs = list(lx.iter_syslog(fx.AUTH_ISO, file_mtime=MTIME, tz=UTC, tz_label="UTC"))
+    assert recs[0].time == datetime(2026, 11, 7, 10, 1, 2, 123456, tzinfo=UTC)
     assert all(r.time_basis == "exact" for r in recs)
     assert recs[1].fields["source_ip"] == "2001:db8::7" and recs[1].fields["method"] == "publickey"
 
@@ -50,7 +50,7 @@ def test_journal():
     st = lx.SyslogStats()
     recs = list(lx.iter_journal(fx.JOURNAL, st))
     assert [r.event for r in recs] == ["ssh_failed", "ssh_accepted", "service_started", "sudo"]
-    assert recs[0].time == datetime(2026, 11, 7, 10, 1, 2, tzinfo=timezone.utc)
+    assert recs[0].time == datetime(2026, 11, 7, 10, 1, 2, tzinfo=UTC)
     assert recs[2].fields["unit"] == "backdoor.service"
     assert recs[3].fields["command_line"] == "/usr/bin/id"           # byte-array MESSAGE
     assert st.unparsed == 1 and st.unsupported == 1
@@ -68,7 +68,7 @@ def test_audit_execve_and_connect():
 
 
 def test_evidence_and_correlation_keys():
-    recs = list(lx.iter_syslog(fx.AUTH_BSD, file_mtime=MTIME, tz=timezone.utc, tz_label="UTC"))
+    recs = list(lx.iter_syslog(fx.AUTH_BSD, file_mtime=MTIME, tz=UTC, tz_label="UTC"))
     recs += list(lx.iter_audit(fx.AUDIT, host="web01"))
     ev = [lx.record_to_evidence(r, _ctx()) for r in recs]
     logons = [e for e in ev if e.kind is EvidenceKind.LOGON]

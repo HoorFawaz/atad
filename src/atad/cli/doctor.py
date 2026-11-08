@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
 
 import typer
 
@@ -22,7 +21,7 @@ def make_registry() -> ToolRegistry:
 
 @handle_errors
 def doctor(
-    case: Optional[str] = typer.Option(
+    case: str | None = typer.Option(
         None, "--case", "-c", help="Also record the results in this case."
     ),
 ) -> None:

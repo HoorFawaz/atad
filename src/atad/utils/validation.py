@@ -12,6 +12,7 @@ from __future__ import annotations
 import ipaddress
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from atad.core.exceptions import ScopeError, ValidationError
 
@@ -42,10 +43,8 @@ def validate_case_id(case_id: str) -> str:
     return value
 
 
-def validate_evidence_path(raw: str | Path, *, must_exist: bool = True) -> "Path":
+def validate_evidence_path(raw: str | Path, *, must_exist: bool = True) -> Path:
     """Validate a file or folder path given by the analyst; returns an absolute path."""
-    from pathlib import Path
-
     text = str(raw or "").strip()
     if not text:
         raise ValidationError("path is empty")

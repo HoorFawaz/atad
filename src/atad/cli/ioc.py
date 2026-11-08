@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Optional
 
 import typer
 
@@ -28,7 +27,7 @@ CaseOpt = typer.Option(..., "--case", "-c", help="Case id.")
 def ioc_load(
     path: str = typer.Option(..., "--path", help="IOC list: .txt (one per line) or .csv."),
     case: str = CaseOpt,
-    name: Optional[str] = typer.Option(None, "--name", help="Source name (default: file name)."),
+    name: str | None = typer.Option(None, "--name", help="Source name (default: file name)."),
     confidence: Confidence = typer.Option(
         Confidence.MEDIUM, "--confidence",
         help="Confidence for indicators that do not state their own."),

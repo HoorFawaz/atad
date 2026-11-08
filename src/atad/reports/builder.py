@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from atad import __version__
@@ -56,7 +56,7 @@ STATUS_LABEL = {
 
 
 def iso(t: datetime | None) -> str | None:
-    return t.astimezone(timezone.utc).isoformat() if t else None
+    return t.astimezone(UTC).isoformat() if t else None
 
 
 # --------------------------------------------------------------------------- #
@@ -224,7 +224,7 @@ def report_problems(data: dict) -> list[str]:
 
 
 def file_stamp(t: datetime) -> str:
-    return t.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return t.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def relative(oc: OpenCase, path: Path) -> str:

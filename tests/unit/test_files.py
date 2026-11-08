@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from atad.core.exceptions import ValidationError
 from atad.evidence.integrity import sha256_file
 from atad.evidence.models import CollectionMode, ExecutionStatus
 from atad.modules.checks import select_checks
-from atad.core.exceptions import ValidationError
 from atad.modules.files import collector as fc
 from atad.modules.files.runner import run_files
 
@@ -141,7 +141,9 @@ def test_yara_matches(evidence_dir):
 def test_yara_bad_rule_raises(tmp_path, evidence_dir):
     bad = tmp_path / "bad.yar"
     bad.write_text("rule broken { condition: }")
-    with pytest.raises(Exception):
+    import yara
+
+    with pytest.raises(yara.Error):
         fc.collect_yara(evidence_dir, [bad])
 
 

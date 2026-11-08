@@ -16,9 +16,11 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from pydantic import ValidationError as PydanticValidationError
+
 from atad import __version__
 from atad.cases.repository import CaseRepository
-from atad.core.exceptions import CaseExistsError, CaseNotFoundError, StorageError
+from atad.core.exceptions import CaseExistsError, CaseNotFoundError, StorageError, ValidationError
 from atad.evidence.models import Case, Profile, Target
 from atad.utils.validation import validate_case_id, validate_target
 
@@ -68,14 +70,18 @@ class CaseManager:
     ) -> OpenCase:
         """Create the case folder, its sub-folders and its database."""
         # Validate before touching the disk.
-        draft = Case(
-            id="CASE-000",
-            name=name,
-            profile=profile,
-            description=description,
-            simulated=simulated,
-            atad_version=__version__,
-        )
+        try:
+            draft = Case(
+                id="CASE-000",
+                name=name,
+                profile=profile,
+                description=description,
+                simulated=simulated,
+                atad_version=__version__,
+            )
+        except PydanticValidationError as exc:
+            msg = "; ".join(str(e.get("msg", "")).removeprefix("Value error, ") for e in exc.errors())
+            raise ValidationError(msg or "invalid case details") from None
         try:
             self.home.mkdir(parents=True, exist_ok=True)
         except OSError as exc:

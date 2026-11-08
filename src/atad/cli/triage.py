@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -31,24 +30,24 @@ STEP_COLOR = {"done": typer.colors.GREEN, "limited": typer.colors.YELLOW,
 
 @handle_errors
 def triage(
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", "-p", help="soc (fast, no scanning), dfir (deeper + exports) or full."),
-    case: Optional[str] = typer.Option(None, "--case", "-c",
+    case: str | None = typer.Option(None, "--case", "-c",
                                        help="Add to this case (default: create a new one)."),
-    only: Optional[str] = typer.Option(None, "--only", help=f"Only these modules: {','.join(MODULES)}"),
-    skip: Optional[str] = typer.Option(None, "--skip", help="All modules except these."),
-    path: Optional[str] = typer.Option(None, "--path", help="Folder or file for the files module."),
-    target: Optional[str] = typer.Option(None, "--target", "-t",
+    only: str | None = typer.Option(None, "--only", help=f"Only these modules: {','.join(MODULES)}"),
+    skip: str | None = typer.Option(None, "--skip", help="All modules except these."),
+    path: str | None = typer.Option(None, "--path", help="Folder or file for the files module."),
+    target: str | None = typer.Option(None, "--target", "-t",
                                          help="Authorized network target for the net module."),
-    iocs: Optional[str] = typer.Option(None, "--iocs", help="IOC list (.txt / .csv) to load first."),
+    iocs: str | None = typer.Option(None, "--iocs", help="IOC list (.txt / .csv) to load first."),
     ioc_confidence: Confidence = typer.Option(Confidence.MEDIUM, "--ioc-confidence",
                                               help="Confidence for indicators without their own."),
-    rules: Optional[Path] = typer.Option(None, "--rules", help="YARA rules (default: $ATAD_RULES or ./rules)."),
-    hours: Optional[int] = typer.Option(None, "--hours", min=1, max=24 * 90,
+    rules: Path | None = typer.Option(None, "--rules", help="YARA rules (default: $ATAD_RULES or ./rules)."),
+    hours: int | None = typer.Option(None, "--hours", min=1, max=24 * 90,
                                         help="Log window (default: 24 for soc, 168 for dfir/full)."),
     allow_public: bool = typer.Option(False, "--allow-public",
                                       help="Allow contacting a public --target (written authorization only)."),
-    config: Optional[Path] = typer.Option(None, "--config", help="Correlation thresholds (YAML)."),
+    config: Path | None = typer.Option(None, "--config", help="Correlation thresholds (YAML)."),
     tlp: str = typer.Option("amber", "--tlp", help="Report classification (TLP 2.0): clear, green, amber, amber+strict, red."),
 ) -> None:
     """First look at THIS machine: run the profile's modules, correlate, report."""

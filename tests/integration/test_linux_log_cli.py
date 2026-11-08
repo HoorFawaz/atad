@@ -5,7 +5,7 @@
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from typer.testing import CliRunner
@@ -30,7 +30,7 @@ def _folder(tmp_path):
     (d / "audit.log").write_text(fx.AUDIT)
     (d / "journal.json").write_text(fx.JOURNAL)
     (d / "notes.txt").write_text("not a log\n")
-    ts = datetime(2026, 11, 7, 12, 0, tzinfo=timezone.utc).timestamp()
+    ts = datetime(2026, 11, 7, 12, 0, tzinfo=UTC).timestamp()
     os.utime(d / "auth.log", (ts, ts))
     return d
 
@@ -81,7 +81,7 @@ def test_live_linux_sources(case, tmp_path, monkeypatch):
     monkeypatch.setattr(lxr, "AUTH_FILES", (str(auth),))
     monkeypatch.setattr(lxr, "AUDIT_FILE", str(audit))
     monkeypatch.setattr(lxr.shutil, "which", lambda name: str(fake))
-    monkeypatch.setattr(lxr, "utc_now", lambda: datetime(2026, 11, 7, 12, 0, tzinfo=timezone.utc))
+    monkeypatch.setattr(lxr, "utc_now", lambda: datetime(2026, 11, 7, 12, 0, tzinfo=UTC))
 
     r = lr.run_log_live(case, ["auth", "journal", "audit"], hours=24)
     by = {o.name: o for o in r.outcomes}

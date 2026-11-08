@@ -8,9 +8,10 @@ from __future__ import annotations
 import json
 import os
 import platform
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from atad.adapters.base import ParseContext
 from atad.adapters.catalog import YaraPython

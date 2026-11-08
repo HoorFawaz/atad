@@ -6,8 +6,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from atad.adapters.base import ParseContext
 from atad.cases.manager import OpenCase
@@ -79,9 +80,9 @@ def run_collector_check(
 
 def base_fields(ctx: ParseContext, module: SourceModule, tool: str) -> dict[str, Any]:
     """Common Evidence fields from a parse context."""
-    return dict(
-        case_id=ctx.case_id, source_module=module, source_tool=tool,
-        tool_version=ctx.tool_version, collection_mode=ctx.collection_mode,
-        host=ctx.host, host_declared=ctx.host_declared, execution_id=ctx.execution_id,
-        raw_ref=ctx.raw_ref, raw_sha256=ctx.raw_sha256, simulated=ctx.simulated,
-    )
+    return {
+        "case_id": ctx.case_id, "source_module": module, "source_tool": tool,
+        "tool_version": ctx.tool_version, "collection_mode": ctx.collection_mode,
+        "host": ctx.host, "host_declared": ctx.host_declared, "execution_id": ctx.execution_id,
+        "raw_ref": ctx.raw_ref, "raw_sha256": ctx.raw_sha256, "simulated": ctx.simulated,
+    }

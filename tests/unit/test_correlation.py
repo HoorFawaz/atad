@@ -8,7 +8,7 @@ must NOT produce a finding. The test checks the exact set of findings, so a
 missed link (recall) or an extra one (precision) fails it.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -25,7 +25,7 @@ from atad.evidence.models import (
     Severity,
 )
 
-T0 = datetime(2026, 11, 7, 10, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 11, 7, 10, 0, tzinfo=UTC)
 WS1, WS2 = "LAB-WS-01", "LAB-WS-02"
 DROPPER = "C:\\Users\\bob\\AppData\\Local\\Temp\\invoice.pdf.exe"
 SHA_DROPPER = "1" * 64

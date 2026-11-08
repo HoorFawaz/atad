@@ -135,12 +135,14 @@ def parse_csv(text: str) -> ParseReport:
     if "value" not in fields:
         report.rejected.append((1, ",".join(reader.fieldnames or []), "CSV needs a 'value' column"))
         return report
+    def get(row: dict, k: str) -> str:
+        return (row.get(fields[k]) or "").strip() if k in fields else ""
+
     for n, row in enumerate(reader, start=2):
-        get = lambda k: (row.get(fields[k]) or "").strip() if k in fields else ""  # noqa: E731
-        value = get("value")
+        value = get(row, "value")
         if not value or value.startswith("#"):
             continue
-        conf_text = get("confidence").lower()
+        conf_text = get(row, "confidence").lower()
         confidence = None
         if conf_text:
             try:
@@ -148,7 +150,7 @@ def parse_csv(text: str) -> ParseReport:
             except ValueError:
                 report.rejected.append((n, value, "confidence must be low, medium or high"))
                 continue
-        _one(value, get("type"), n, report, confidence, get("description"))
+        _one(value, get(row, "type"), n, report, confidence, get(row, "description"))
     return report
 
 

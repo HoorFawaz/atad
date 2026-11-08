@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 def utc_now() -> datetime:
     """Current time as a timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ensure_utc(value: datetime) -> datetime:
@@ -33,7 +33,7 @@ def ensure_utc(value: datetime) -> datetime:
     """
     if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
         raise ValueError("datetime must be timezone-aware")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 # --------------------------------------------------------------------------- #
@@ -186,7 +186,7 @@ class Observable(BaseModel):
     value: str
 
     @model_validator(mode="after")
-    def _normalize(self) -> "Observable":
+    def _normalize(self) -> Observable:
         object.__setattr__(self, "value", normalize_observable(self.type, self.value))
         return self
 
@@ -238,7 +238,7 @@ class Evidence(BaseModel):
         return None if v is None else normalize_observable(ObservableType.SHA256, v)
 
     @model_validator(mode="after")
-    def _mode_rules(self) -> "Evidence":
+    def _mode_rules(self) -> Evidence:
         # Local collection must never carry an analyst-typed host name.
         if self.collection_mode is CollectionMode.LOCAL and self.host_declared:
             raise ValueError("local evidence cannot have an analyst-declared host")
@@ -266,7 +266,7 @@ class Finding(BaseModel):
         return ensure_utc(v)
 
     @model_validator(mode="after")
-    def _needs_evidence(self) -> "Finding":
+    def _needs_evidence(self) -> Finding:
         # A correlated finding without evidence would be an invented claim.
         if self.category is FindingCategory.CORRELATED and len(self.evidence_ids) < 2:
             raise ValueError("a correlated finding must reference at least 2 evidence records")

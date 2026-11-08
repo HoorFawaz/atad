@@ -85,7 +85,7 @@ def run_sigma(case_id: str, evidence: list[Evidence], path: Path) -> SigmaRun:
             try:
                 if rule.match(events[e.id]):
                     hits[_host_key(e.host)].append(e)
-            except Exception as exc:          # a broken rule must not stop the others
+            except Exception as exc:  # noqa: BLE001 - a broken rule must not stop the others
                 run.errors.append((rule.title, str(exc)))
                 break
         if hits:

@@ -28,10 +28,11 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone, tzinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from atad.adapters.base import ParseContext
 from atad.evidence.models import Evidence, EvidenceKind, Observable, SourceModule
@@ -117,7 +118,7 @@ def parse_message(program: str | None, message: str) -> tuple[str, dict[str, Any
 def _bsd_time(mon: str, day: str, hms: str, year: int, tz: tzinfo) -> datetime | None:
     try:
         h, mi, s = (int(x) for x in hms.split(":"))
-        return datetime(year, MONTHS[mon], int(day), h, mi, s, tzinfo=tz).astimezone(timezone.utc)
+        return datetime(year, MONTHS[mon], int(day), h, mi, s, tzinfo=tz).astimezone(UTC)
     except (KeyError, ValueError):
         return None
 
@@ -150,7 +151,7 @@ def iter_syslog(text: str, *, file_mtime: datetime, tz: tzinfo, tz_label: str,
             if re.search(r"[+-]\d{4}$", ts):
                 ts = ts[:-2] + ":" + ts[-2:]
             try:
-                when, basis = datetime.fromisoformat(ts).astimezone(timezone.utc), "exact"
+                when, basis = datetime.fromisoformat(ts).astimezone(UTC), "exact"
             except ValueError:
                 stats.unparsed += 1
                 continue
@@ -192,7 +193,7 @@ def iter_journal(text: str, stats: SyslogStats | None = None) -> Iterator[LinuxR
         try:
             obj = json.loads(line)
             when = datetime.fromtimestamp(int(obj["__REALTIME_TIMESTAMP"]) / 1_000_000,
-                                          tz=timezone.utc)
+                                          tz=UTC)
         except (ValueError, KeyError, TypeError):
             stats.unparsed += 1
             continue
@@ -220,7 +221,7 @@ _HEX = re.compile(r"^[0-9A-Fa-f]+$")
 
 def _kv(rest: str) -> dict[str, str]:
     out = {}
-    for k, v in _KV.findall(rest.split("\x1d")[0]):
+    for k, v in _KV.findall(rest.split("\x1d", maxsplit=1)[0]):
         out[k] = v[1:-1] if v.startswith('"') else v
     return out
 
@@ -286,15 +287,15 @@ def iter_audit(text: str, stats: SyslogStats | None = None,
         ev = events[key]
         recs = ev["records"]
         sc = recs.get("SYSCALL", {})
-        when = datetime.fromtimestamp(float(ev["ts"]), tz=timezone.utc)
+        when = datetime.fromtimestamp(float(ev["ts"]), tz=UTC)
         fields = {"serial": ev["serial"], "types": sorted(recs)}
         for r in recs.values():
             for k, v in r.items():
                 fields.setdefault(k, v)
-        base = dict(image=sc.get("exe"), pid=int(sc["pid"]) if sc.get("pid", "").isdigit() else None,
-                    ppid=int(sc["ppid"]) if sc.get("ppid", "").isdigit() else None,
-                    uid=sc.get("uid"), auid=sc.get("auid"), comm=sc.get("comm"),
-                    success=sc.get("success"), key=None if sc.get("key") in (None, "(null)") else sc.get("key"))
+        base = {"image": sc.get("exe"), "pid": int(sc["pid"]) if sc.get("pid", "").isdigit() else None,
+                    "ppid": int(sc["ppid"]) if sc.get("ppid", "").isdigit() else None,
+                    "uid": sc.get("uid"), "auid": sc.get("auid"), "comm": sc.get("comm"),
+                    "success": sc.get("success"), "key": None if sc.get("key") in (None, "(null)") else sc.get("key")}
         if "EXECVE" in recs:
             argv = ev.get("argv", [])
             yield LinuxRecord(AUDIT, "execve", when, "exact", host, sc.get("comm"), base["pid"],
@@ -368,10 +369,10 @@ def record_to_evidence(rec: LinuxRecord, ctx: ParseContext) -> Evidence:
     data = {"channel": rec.source, "event_id": rec.event, "program": rec.program, "pid": rec.pid,
             "message": rec.message, "computer": rec.host, "time_basis": rec.time_basis,
             "fields": f}
-    base = dict(case_id=ctx.case_id, source_module=SourceModule.LOG, source_tool=ctx.tool or rec.source,
-                tool_version=ctx.tool_version, collection_mode=ctx.collection_mode, host=ctx.host,
-                host_declared=ctx.host_declared, execution_id=ctx.execution_id, raw_ref=ctx.raw_ref,
-                raw_sha256=ctx.raw_sha256, simulated=ctx.simulated, event_time=rec.time)
+    base = {"case_id": ctx.case_id, "source_module": SourceModule.LOG, "source_tool": ctx.tool or rec.source,
+                "tool_version": ctx.tool_version, "collection_mode": ctx.collection_mode, "host": ctx.host,
+                "host_declared": ctx.host_declared, "execution_id": ctx.execution_id, "raw_ref": ctx.raw_ref,
+                "raw_sha256": ctx.raw_sha256, "simulated": ctx.simulated, "event_time": rec.time}
     host_obs = _obs(("hostname", rec.host))
     src = _LABEL[rec.source]
 
