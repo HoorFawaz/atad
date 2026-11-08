@@ -135,6 +135,9 @@ On Linux, syslog lines without a year or time zone use the file's date and
 `atad report` hashes every raw file again. If one changed or is missing, the
 report says so at the top and the command exits with code 4.
 
+Long steps show a counter such as `hashing files: 120/800` on the terminal; it is
+not written to reports or redirected output (`ATAD_NO_PROGRESS=1` turns it off).
+
 Cases are stored in `./cases` (override with `--home` or the `ATAD_HOME`
 environment variable).
 

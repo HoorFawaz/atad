@@ -23,6 +23,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from atad.core.progress import track
 from atad.evidence.models import (
     Confidence,
     Evidence,
@@ -78,7 +79,7 @@ def run_sigma(case_id: str, evidence: list[Evidence], path: Path) -> SigmaRun:
         if tags:
             groups[tags].append(e)
     events = {e.id: to_event(e) for g in groups.values() for e in g}
-    for rule in run.load.rules:
+    for rule in track(run.load.rules, "Sigma rules", len(run.load.rules)):
         hits: dict[str, list[Evidence]] = defaultdict(list)
         candidates = [e for tags, g in groups.items() if applies_to_tags(rule.logsource, tags) for e in g]
         for e in candidates:

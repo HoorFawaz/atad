@@ -20,6 +20,7 @@ from atad.adapters.catalog import EvtxRust, PythonEvtx, Sysmon, Wevtutil
 from atad.cases.manager import OpenCase
 from atad.core.execution import execute_to_file, import_file, record_skipped
 from atad.core.platform import LINUX, WINDOWS, current_os, local_hostname
+from atad.core.progress import track
 from atad.evidence.models import (
     CollectionMode,
     Evidence,
@@ -89,7 +90,7 @@ def _parse_into_case(case: OpenCase, outcome: SourceOutcome, evtx_path: Path,
     stats = ReadStats()
     batch: list[Evidence] = []
     try:
-        for xml in iter_evtx_xml(evtx_path, stats, max_events):
+        for xml in track(iter_evtx_xml(evtx_path, stats, max_events), f"reading {evtx_path.name}"):
             event = parse_event_xml(xml)
             if event is None:
                 stats.record_errors += 1

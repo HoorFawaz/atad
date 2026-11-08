@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from atad.adapters.base import ParseContext
+from atad.core.progress import Progress, track
 from atad.evidence.models import (
     Evidence,
     EvidenceKind,
@@ -77,6 +78,12 @@ def walk_files(
     def onerror(exc: OSError) -> None:
         errors.append({"path": str(exc.filename), "error": exc.strerror or str(exc)})
 
+    with Progress("listing files") as bar:
+        return _walk(root, max_files, excluded, files, links, errors, onerror, bar)
+
+
+def _walk(root: Path, max_files: int, excluded: set, files: list[Path], links: list[Path],
+          errors: list[dict], onerror, bar: Progress) -> WalkResult:
     for dirpath, dirnames, filenames in os.walk(root, onerror=onerror, followlinks=False):
         here = Path(dirpath)
         # Do not descend into linked folders.
@@ -96,6 +103,7 @@ def walk_files(
             if len(files) >= max_files:
                 return WalkResult(files, links, errors, True)
             files.append(p)
+            bar.advance()
     return WalkResult(files, links, errors, False)
 
 
@@ -140,11 +148,13 @@ def collect_hashes(
 ) -> dict[str, Any]:
     walk = walk_files(root, max_files, exclude)
     records = []
-    for p in walk.files:
-        try:
-            records.append({"path": str(p), **hash_file(p)})
-        except OSError as exc:
-            records.append({"path": str(p), "error": exc.strerror or str(exc)})
+    with Progress("hashing files", total=len(walk.files)) as bar:
+        for p in walk.files:
+            try:
+                records.append({"path": str(p), **hash_file(p)})
+            except OSError as exc:
+                records.append({"path": str(p), "error": exc.strerror or str(exc)})
+            bar.advance(note=p.name)
     return _capture("hash", root, walk, records)
 
 
@@ -237,11 +247,13 @@ def collect_info(
 ) -> dict[str, Any]:
     walk = walk_files(root, max_files, exclude)
     records = []
-    for p in walk.files:
-        try:
-            records.append(file_info(p))
-        except OSError as exc:
-            records.append({"path": str(p), "error": exc.strerror or str(exc)})
+    with Progress("reading file details", total=len(walk.files)) as bar:
+        for p in walk.files:
+            try:
+                records.append(file_info(p))
+            except OSError as exc:
+                records.append({"path": str(p), "error": exc.strerror or str(exc)})
+            bar.advance()
     return _capture("info", root, walk, records)
 
 
@@ -283,7 +295,7 @@ def collect_yara(
     compiled = compile_rules(rule_files)
     walk = walk_files(root, max_files, exclude)
     records = []
-    for p in walk.files:
+    for p in track(walk.files, "YARA scan", len(walk.files), note=lambda f: f.name):
         try:
             size = p.stat(follow_symlinks=False).st_size
             if size > max_scan_bytes:

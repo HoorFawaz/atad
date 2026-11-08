@@ -25,6 +25,7 @@ from pathlib import Path
 from atad.cases.manager import OpenCase
 from atad.core.exceptions import ValidationError
 from atad.core.execution import execute_and_record, import_file, record_skipped
+from atad.core.progress import track
 from atad.evidence.models import CollectionMode, Evidence, ExecutionStatus, SourceModule, utc_now
 from atad.modules.logs import linux as lx
 from atad.modules.logs.evtx_reader import ReadStats
@@ -90,7 +91,7 @@ def store_records(case: OpenCase, outcome, records: Iterator[lx.LinuxRecord], ct
     """Convert, filter by time window, store in time order."""
     batch: list[Evidence] = []
     truncated = False
-    for rec in records:
+    for rec in track(records, "reading log records"):
         if rec.host:
             outcome.computers.add(rec.host)
         if since and rec.time and rec.time < since:

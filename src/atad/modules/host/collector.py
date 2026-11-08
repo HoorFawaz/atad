@@ -21,6 +21,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from atad.adapters.base import ParseContext
+from atad.core.progress import track
 from atad.evidence.models import Evidence, EvidenceKind, Observable, SourceModule
 from atad.modules.common import base_fields
 
@@ -110,7 +111,7 @@ def collect_processes(hash_executables: bool = True) -> dict[str, Any]:
     attrs = ["pid", "ppid", "name", "exe", "cmdline", "username", "create_time", "status"]
     records, denied = [], 0
     hashes: dict[str, str | None] = {}
-    for p in psutil.process_iter(attrs=attrs, ad_value=None):
+    for p in track(psutil.process_iter(attrs=attrs, ad_value=None), "reading processes"):
         info = p.info
         exe = info.get("exe") or None
         cmd = " ".join(info["cmdline"]) if info.get("cmdline") else None
