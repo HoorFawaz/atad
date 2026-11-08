@@ -79,9 +79,13 @@ app.command("dns", help="Forward (name -> IP) or reverse (IP -> name) lookup.")(
 
 
 def _execute(checks, excluded, target, case_id, profile, ports, allow_public, max_hosts) -> None:
+    from atad.modules.net.collector import validate_ports
     from atad.modules.net.runner import TOUCHES_TARGET
     from atad.utils.validation import validate_target
 
+    if ports:
+        # Checked before anything is created, even when Nmap is not installed.
+        validate_ports(ports)
     if target:
         # Validate BEFORE creating anything, with the same rules run_net uses.
         touches = any(c in TOUCHES_TARGET for c in checks)

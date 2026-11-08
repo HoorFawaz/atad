@@ -62,3 +62,14 @@ def test_net_interfaces_only(tmp_path):
 def test_bad_ports_rejected(tmp_path):
     r = _run(tmp_path / "c", "net", "scan", "--target", "127.0.0.1", "--ports", "22;id")
     assert r.exit_code == 2
+
+
+def test_bad_ports_rejected_without_nmap(tmp_path, monkeypatch):
+    # GitHub's test machines have no Nmap: the port list must still be checked first.
+    from atad.adapters.base import ToolInfo
+    from atad.adapters.catalog import Nmap
+    monkeypatch.setattr(Nmap, "detect", lambda self: ToolInfo(name="nmap", available=False, reason="test"))
+    home = tmp_path / "c"
+    r = _run(home, "net", "scan", "--target", "127.0.0.1", "--ports", "22;id")
+    assert r.exit_code == 2 and "invalid port list" in r.output
+    assert "No cases yet" in _run(home, "case", "list").output

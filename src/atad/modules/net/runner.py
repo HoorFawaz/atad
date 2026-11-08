@@ -124,6 +124,8 @@ def run_net(case: OpenCase, checks: list[str], *, target: str | None = None,
             ports: str | None = None, allow_public: bool = False,
             max_hosts: int | None = None, auto_scope: bool = True) -> NetRunResult:
     excluded = excluded or []
+    if ports:
+        nc.validate_ports(ports)          # a bad list is refused even without Nmap
     limit = {"max_addresses": max_hosts} if max_hosts else {}
     touches = [c for c in checks if c in TOUCHES_TARGET]
     vt = None
