@@ -1,0 +1,61 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "ATAD (عَتاد)",
+  "alternateName": "Advanced Toolkit for Attack & Defense",
+  "description": "Read-only command-line toolkit for SOC and DFIR work. It runs established security tools, keeps every raw output as evidence with its SHA-256, normalizes the results, correlates them across sources with documented rules, and writes a formal investigation report.",
+  "version": "0.1.0",
+  "dateCreated": "2026-11-01",
+  "datePublished": "2026-11-08",
+  "codeRepository": "https://github.com/HoorFawaz/atad",
+  "issueTracker": "https://github.com/HoorFawaz/atad/issues",
+  "downloadUrl": "https://github.com/HoorFawaz/atad/releases",
+  "readme": "https://github.com/HoorFawaz/atad/blob/main/README.md",
+  "license": "https://github.com/HoorFawaz/atad/blob/main/LICENSE",
+  "copyrightHolder": {
+    "@type": "Organization",
+    "name": "ATAD Team",
+    "email": "Atad.Team@outlook.com"
+  },
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Hoor",
+      "familyName": "Fawaz",
+      "@id": "https://github.com/HoorFawaz"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Danah",
+      "familyName": "Fawaz",
+      "@id": "https://github.com/danahfawaz"
+    }
+  ],
+  "programmingLanguage": "Python",
+  "runtimePlatform": "Python 3.11, 3.12, 3.13",
+  "operatingSystem": ["Windows", "Linux"],
+  "applicationCategory": "Security",
+  "developmentStatus": "active",
+  "softwareRequirements": [
+    "typer>=0.12",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "psutil>=5.9",
+    "evtx>=0.8",
+    "jinja2>=3.1"
+  ],
+  "keywords": [
+    "DFIR",
+    "digital forensics",
+    "incident response",
+    "SOC",
+    "threat hunting",
+    "evidence correlation",
+    "Windows event logs",
+    "Sysmon",
+    "YARA",
+    "Sigma",
+    "Nmap",
+    "IOC"
+  ]
+}
