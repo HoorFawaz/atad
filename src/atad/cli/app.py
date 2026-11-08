@@ -19,6 +19,7 @@ from atad.cli import log as log_cli
 from atad.cli import net as net_cli
 from atad.cli import report as report_cli
 from atad.cli import scope as scope_cli
+from atad.cli.banner import show_welcome
 from atad.cli.context import state
 from atad.cli.demo import demo
 from atad.cli.doctor import doctor
@@ -27,7 +28,7 @@ from atad.cli.triage import triage
 app = typer.Typer(
     name="atad",
     help="ATAD (عَتاد) — Advanced Toolkit for Attack & Defense.",
-    no_args_is_help=True,
+    invoke_without_command=True,
     add_completion=False,
 )
 app.add_typer(cases_cli.app, name="case", help="Create, list and inspect investigation cases.")
@@ -55,6 +56,7 @@ def _version(value: bool) -> None:
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     home: Path | None = typer.Option(
         None, "--home", help="Folder that holds cases (default: $ATAD_HOME or ./cases)."
     ),
@@ -63,3 +65,5 @@ def main(
     ),
 ) -> None:
     state.home = home
+    if ctx.invoked_subcommand is None:
+        show_welcome()

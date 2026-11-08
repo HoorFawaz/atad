@@ -4,7 +4,14 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 
 ## [Unreleased]
 
+### Fixed
+- `atad net --ports` is checked before anything runs, also when Nmap is not installed.
+
 ### Added
+- `atad` without a command shows a welcome screen: the name in block letters (English and Arabic)
+  and the commands to start with. Terminal only; `ATAD_NO_BANNER=1` turns the drawing off.
+- Risk register (`docs/risks.md`): 18 rated risks with their controls and the tests that check them.
+- README rewritten with screenshots of real ATAD output.
 - Joint ownership by the ATAD Team (Hoor Fawaz and Danah Fawaz) in the license, file headers,
   README, NOTICE, TRADEMARKS and the report footer.
 - Case management, evidence model and per-case SQLite database (M1).

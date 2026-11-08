@@ -29,18 +29,10 @@ data that was actually collected from the analyst's own machine.
 
 ## 2. Architectural gaps & technical risks
 
-| # | Gap / risk | Impact | Mitigation |
-|---|---|---|---|
-| 1 | `--target` mixed remote and local collection | Wrong evidence attribution | Collection modes (§1.1); every record stores `collection_mode` |
-| 2 | Timestamps from different sources/timezones | False or missed correlations | Store all times as UTC-aware; keep original string in `data` |
-| 3 | Admin rights needed (Security log, Sysmon log, some Nmap scans) | Silent partial results | Privilege check at start; recorded in execution log and report |
-| 4 | Missing/unknown tool versions | Unreproducible results | `atad doctor` + version stored on every execution |
-| 5 | "Unavailable" confused with "nothing found" | Misleading report | Execution status: `success`, `failed`, `skipped`, `unavailable`; report shows coverage |
-| 6 | Vague correlation | False positives, not explainable | Rule catalogue (§7), each rule unit-tested on labelled data |
-| 7 | PID reuse on Windows | Wrong process links | Prefer Sysmon `ProcessGuid`; PID + time window as fallback only |
-| 8 | Large raw outputs | Slow DB / huge reports | Raw outputs as files with SHA-256; size limits on capture |
-| 9 | Synthetic demo data confused with real | Credibility | `simulated` flag on case and evidence; shown in report |
-| 10 | Command injection through arguments | Tool becomes an attack vector | Argument lists only, strict validation, no `shell=True` |
+The full, rated list is kept in its own document: **[ATAD risk register](risks.md)**
+(18 risks in five areas, each with its control in ATAD and the test that checks it).
+The design decisions it relies on are the collection modes (§1.1), the evidence
+model (§5), the documented rule catalogue (§7) and the safe execution engine (§8).
 
 ---
 
