@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from atad.adapters.catalog import Psutil
 from atad.cases.manager import OpenCase
-from atad.core.platform import WINDOWS, current_os, local_hostname
+from atad.core.platform import LINUX, WINDOWS, current_os, local_hostname
 from atad.evidence.models import CollectionMode, Evidence, ExecutionStatus, SourceModule
 from atad.modules.common import (
     EXCLUDED_BY_USER,
@@ -64,14 +64,17 @@ def run_host(case: OpenCase, checks: list[str], *, excluded: list[str] | None = 
         reason = None
         if not psutil_info.available:
             reason = "psutil is not installed"
-        elif check == "startup" and current_os() != WINDOWS:
-            reason = f"startup locations are checked on Windows only (Linux comes in M9)"
+        elif check == "startup" and current_os() not in (WINDOWS, LINUX):
+            reason = f"startup locations are checked on Windows and Linux only (this is {current_os()})"
         if reason:
             result.outcomes.append(skip_check(case, module=SourceModule.HOST, check=check, tool=tool,
                                               mode=mode, status=ExecutionStatus.UNAVAILABLE,
                                               reason=reason))
             continue
         collect, to_ev = _COLLECTORS[check]
+        if check == "startup" and current_os() == LINUX:
+            from atad.modules.host.linux_persistence import collect_startup_linux
+            collect, tool = collect_startup_linux, "linux-persistence"
         result.outcomes.append(run_collector_check(
             case, module=SourceModule.HOST, check=check, tool=tool,
             tool_version=psutil_info.version, mode=mode, host=host,

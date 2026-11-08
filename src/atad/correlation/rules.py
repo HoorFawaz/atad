@@ -13,7 +13,7 @@ rationale that says, in plain words, why that evidence was linked.
 | YARA | A file that matched a YARA rule                        | suspicious  |
 | S1   | PowerShell started with an encoded command             | suspicious  |
 | S2   | A file whose real type does not match its name         | suspicious  |
-| S3   | Auto-start entry that runs from a user-writable folder | suspicious  |
+| S3   | Auto-start entry that runs from a user-writable folder or downloads code | suspicious |
 | R1   | Many failed logons from one source (with or without a success) | suspicious |
 | R2   | A process that connected to a known indicator          | suspicious  |
 | R3   | A file that matched YARA was also run as a process     | suspicious  |
@@ -267,6 +267,11 @@ _AUTOSTART = {
     "registry_run": ("Run key", "T1547.001 Registry Run Keys / Startup Folder"),
     "startup_folder": ("Startup folder entry", "T1547.001 Registry Run Keys / Startup Folder"),
     "service": ("Auto-start service", "T1543.003 Windows Service"),
+    "systemd": ("systemd unit", "T1543.002 Systemd Service"),
+    "cron": ("cron job", "T1053.003 Cron"),
+    "rc_local": ("rc.local entry", "T1037.004 RC Scripts"),
+    "shell_profile": ("shell start-up line", "T1546.004 Unix Shell Configuration Modification"),
+    "authorized_keys": ("SSH authorized key with a forced command", "T1098.004 SSH Authorized Keys"),
 }
 
 
@@ -282,16 +287,17 @@ def rule_suspicious_autostart(view: CaseView) -> list[RuleResult]:
         label, technique = _AUTOSTART.get(e.data.get("type"), ("Auto-start entry", "T1547"))
         entries = "; ".join(f"{_AUTOSTART.get(x.data.get('type'), (label,))[0]} '{x.data.get('name')}'"
                             f" in {x.data.get('location')}" for x in evs)
-        rationale = (f"{entries} on {e.host} starts {e.data.get('executable')} — "
-                     + "; ".join(e.data["suspicious_reasons"]) + ". Programs that start "
-                     f"automatically from a folder any user can write to are a common way for "
-                     f"malware to survive a restart (MITRE ATT&CK {technique}). Some legitimate "
-                     "per-user applications install there too, so confidence is low until "
-                     "another finding points to the same program.")
+        cmd = e.data.get("command")
+        rationale = (f"{entries} on {e.host} starts {e.data.get('executable')}"
+                     + (f" (command: {cmd[:160]})" if cmd and cmd != e.data.get("executable") else "")
+                     + " — " + "; ".join(e.data["suspicious_reasons"]) + ". Entries that start "
+                     "automatically from a folder any user can write to, or that download and run "
+                     "code, are a common way for malware to survive a restart (MITRE ATT&CK "
+                     f"{technique}). Some legitimate software does this too, so confidence is low "
+                     "until another finding points to the same program.")
         keys = {o for x in evs for o in x.observables if o.type.value in ("path", "sha256")}
         out.append(RuleResult(
-            _finding(view, "S3", f"Auto-start from a user-writable folder: "
-                                 f"{name_of(e.data.get('executable'))}",
+            _finding(view, "S3", f"Suspicious auto-start: {name_of(e.data.get('executable'))}",
                      FindingCategory.SUSPICIOUS, Severity.MEDIUM, Confidence.LOW, rationale,
                      [x.id for x in evs]),
             keys=keys))

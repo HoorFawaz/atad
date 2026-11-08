@@ -94,8 +94,8 @@ def test_real_collection_on_this_machine(case):
     assert all(e.host == r.host and not e.host_declared for e in r.evidence)
 
 
-def test_startup_on_non_windows_is_unavailable(case, monkeypatch):
-    monkeypatch.setattr(hr, "current_os", lambda: "linux")
+def test_startup_on_other_os_is_unavailable(case, monkeypatch):
+    monkeypatch.setattr(hr, "current_os", lambda: "macos")
     r = hr.run_host(case, ["startup"], excluded=["info"])
     assert r.outcome("startup").execution.status is ExecutionStatus.UNAVAILABLE
     assert r.outcome("info").excluded_by_user

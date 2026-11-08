@@ -338,6 +338,13 @@ def collect_startup() -> dict[str, Any]:
     return {"check": "startup", "count": len(items), "errors": reg_err + svc_err, "records": items}
 
 
+STARTUP_LABELS = {
+    "registry_run": "Run key", "startup_folder": "Startup folder", "service": "Auto-start service",
+    "systemd": "systemd unit", "cron": "cron job", "rc_local": "rc.local",
+    "shell_profile": "Shell start-up file", "authorized_keys": "SSH authorized key",
+}
+
+
 def startup_to_evidence(cap: dict, ctx: ParseContext) -> list[Evidence]:
     out = []
     for r in cap["records"]:
@@ -348,12 +355,14 @@ def startup_to_evidence(cap: dict, ctx: ParseContext) -> list[Evidence]:
             except ValueError:
                 pass
         flag = " — SUSPICIOUS: " + "; ".join(r["suspicious_reasons"]) if r["suspicious_reasons"] else ""
-        label = {"registry_run": "Run key", "startup_folder": "Startup folder",
-                 "service": "Auto-start service"}[r["type"]]
+        label = STARTUP_LABELS.get(r["type"], r["type"])
+        target = PureWindowsPath(r.get("executable") or r.get("command") or "?").name
+        if r["type"] == "authorized_keys":
+            target = f"{r.get('key_type')} key for {r.get('user')}"
         out.append(Evidence(
-            **base_fields(ctx, SourceModule.HOST, "winreg/psutil"),
+            **base_fields(ctx, SourceModule.HOST, ctx.tool or "winreg/psutil"),
             kind=EvidenceKind.PERSISTENCE,
-            summary=f"{label}: {r['name']} -> {PureWindowsPath(r.get('executable') or '?').name}{flag}",
+            summary=f"{label}: {r['name']} -> {target}{flag}",
             data=r, observables=obs,
         ))
     return out

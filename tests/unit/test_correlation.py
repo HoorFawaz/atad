@@ -323,13 +323,13 @@ def test_s3_user_writable_autostart(case):
     ]
     case.repo.add_evidence_many([e.model_copy(update={"case_id": cid}) for e in items])
     s3 = {f.title: f for f in correlate(case.repo).findings if f.rule_id == "S3"}
-    assert set(s3) == {"Auto-start from a user-writable folder: upd.exe",
-                       "Auto-start from a user-writable folder: svc.exe"}
-    upd = s3["Auto-start from a user-writable folder: upd.exe"]
+    assert set(s3) == {"Suspicious auto-start: upd.exe",
+                       "Suspicious auto-start: svc.exe"}
+    upd = s3["Suspicious auto-start: upd.exe"]
     assert len(upd.evidence_ids) == 2
     assert upd.severity is Severity.MEDIUM and upd.confidence is Confidence.LOW
     assert "T1547.001" in upd.rationale
-    assert "T1543.003" in s3["Auto-start from a user-writable folder: svc.exe"].rationale
+    assert "T1543.003" in s3["Suspicious auto-start: svc.exe"].rationale
 
 
 def test_s3_linked_by_r4_to_the_file_creation(case):

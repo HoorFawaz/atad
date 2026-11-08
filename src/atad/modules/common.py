@@ -70,7 +70,7 @@ def run_collector_check(
             case_id=case.case.id, host=host, collection_mode=mode, host_declared=host_declared,
             execution_id=rec.execution.id, raw_ref=rec.execution.raw_ref,
             raw_sha256=rec.execution.raw_sha256, tool_version=tool_version,
-            simulated=case.case.simulated,
+            simulated=case.case.simulated, tool=tool,
         )
         outcome.capture = capture
         outcome.evidence = case.repo.add_evidence_many(to_evidence(capture, ctx))

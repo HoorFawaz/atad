@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Hoor Fawaz
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
-"""Detection specs for every tool atad knows about (MVP: Windows first)."""
+"""Detection specs for every tool atad knows about (Windows and Linux)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from atad.adapters.base import ExternalTool, PythonLibrary, ToolAdapter, ToolInf
 from atad.core.execution import resolve_executable, run_command
 
 WIN = frozenset({"windows"})
+LNX = frozenset({"linux"})
 ALL = frozenset({"windows", "linux"})
 
 SYSMON_CHANNEL = "Microsoft-Windows-Sysmon/Operational"
@@ -103,8 +104,65 @@ class Sysmon(ToolAdapter):
         return self._info(False, reason="Sysmon log channel not found (Sysmon not installed?)")
 
 
+# ------------------------------------------------------------------- Linux
+
+
+class Journalctl(ExternalTool):
+    name = "journalctl"
+    purpose = "systemd journal (sshd, sudo, useradd, services)"
+    executables = ("journalctl",)
+    version_args = ("--version",)
+    version_pattern = r"systemd (\d+)"
+    supported_os = LNX
+
+
+class _LogFile(ToolAdapter):
+    paths: tuple[str, ...] = ()
+    supported_os = LNX
+
+    def _detect(self) -> ToolInfo:
+        import os
+
+        for p in self.paths:
+            if os.path.isfile(p):
+                if os.access(p, os.R_OK):
+                    return self._info(True, path=p)
+                return self._info(False, path=p, reason=f"{p} exists but needs root to read")
+        return self._info(False, reason=f"not found ({', '.join(self.paths)})")
+
+
+class AuthLog(_LogFile):
+    name = "auth-log"
+    purpose = "SSH logins, sudo, useradd (auth.log / secure)"
+    paths = ("/var/log/auth.log", "/var/log/secure")
+
+
+class AuditLog(_LogFile):
+    name = "auditd"
+    purpose = "process execution and connections (audit.log)"
+    paths = ("/var/log/audit/audit.log",)
+
+
+class IpRoute(ExternalTool):
+    name = "ip"
+    purpose = "routing table (ip -j route)"
+    executables = ("ip",)
+    version_args = ("-V",)
+    version_pattern = r"iproute2-(\S+)"
+    supported_os = LNX
+
+
+class Dig(ExternalTool):
+    name = "dig"
+    purpose = "DNS record types (MX, NS, TXT, CNAME)"
+    executables = ("dig",)
+    version_args = ("-v",)
+    version_pattern = r"DiG (\S+)"
+
+
 ALL_TOOLS: tuple[type[ToolAdapter], ...] = (
     Psutil, EvtxRust, PythonEvtx, Jinja2, YaraPython,
     Ping, Wevtutil,
     Nmap, Sysmon,
+    Journalctl, AuthLog, AuditLog, IpRoute, Dig,
 )

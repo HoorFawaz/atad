@@ -10,12 +10,16 @@ Design notes
 * Ping reachability uses the exit code AND a ``TTL=`` reply line, because
   Windows ``ping`` can exit 0 when a router answers "destination unreachable".
 * Nmap runs only with fixed, safe profiles (TCP connect scan, no scripts).
+* On Linux the interface check also reads the routing table (``ip -j route``,
+  JSON output) and DNS adds MX/NS/TXT/CNAME records with ``dig`` when it is
+  installed.
 """
 
 from __future__ import annotations
 
 import concurrent.futures
 import ipaddress
+import json
 import re
 import socket
 import xml.etree.ElementTree as ET
@@ -49,7 +53,33 @@ def collect_interfaces() -> dict[str, Any]:
             "name": name, "is_up": st.isup if st else None, "speed_mbps": st.speed if st else None,
             "mtu": st.mtu if st else None, "addresses": out,
         })
-    return {"check": "interfaces", "count": len(records), "records": records}
+    cap: dict[str, Any] = {"check": "interfaces", "count": len(records), "records": records}
+    routes = collect_routes()
+    if routes is not None:
+        cap["routes"] = routes
+    return cap
+
+
+def collect_routes() -> dict[str, Any] | None:
+    """Linux routing table from ``ip -j route`` (None where ``ip`` is not available)."""
+    from atad.core.execution import resolve_executable, run_command
+    from atad.core.platform import LINUX, current_os
+
+    if current_os() != LINUX:
+        return None
+    ip = resolve_executable("ip")
+    if not ip:
+        return {"error": "ip command not found", "entries": []}
+    res = run_command([ip, "-j", "route", "show"], timeout=10, max_output=1024 * 1024)
+    if not res.ok:
+        return {"error": (res.error or res.stderr.decode("utf-8", "replace"))[:200], "entries": []}
+    try:
+        entries = json.loads(res.stdout or b"[]")
+    except ValueError:
+        return {"error": "ip -j route did not return JSON", "entries": []}
+    return {"error": None, "command": [ip, "-j", "route", "show"],
+            "entries": [{k: e.get(k) for k in ("dst", "gateway", "dev", "protocol", "prefsrc", "metric")}
+                        for e in entries if isinstance(e, dict)]}
 
 
 def interfaces_to_evidence(cap: dict, ctx: ParseContext) -> list[Evidence]:
@@ -68,6 +98,22 @@ def interfaces_to_evidence(cap: dict, ctx: ParseContext) -> list[Evidence]:
             summary=f"Interface {r['name']} ({state}): {', '.join(ips) or 'no IP'}",
             data=r, observables=obs,
         ))
+    routes = cap.get("routes")
+    if routes and routes.get("entries"):
+        # Gateways are not this machine's addresses, so they are kept out of the
+        # INTERFACE records (which correlation treats as "own" addresses).
+        default = [e for e in routes["entries"] if e.get("dst") == "default"]
+        gw = ", ".join(f"{e.get('gateway')} dev {e.get('dev')}" for e in default) or "none"
+        obs = []
+        for e in default:
+            try:
+                obs.append(Observable(type="ip", value=e["gateway"]))
+            except (ValueError, KeyError, TypeError):
+                pass
+        out.append(Evidence(
+            **base_fields(ctx, SourceModule.NET, "ip route"), kind=EvidenceKind.HOST_INFO,
+            summary=f"Routing table: {len(routes['entries'])} route(s); default via {gw}",
+            data=routes, observables=obs))
     return out
 
 
@@ -228,6 +274,27 @@ def resolve_name(name: str) -> list[str]:
     return sorted({i[4][0] for i in infos})
 
 
+DIG_TYPES = ("MX", "NS", "TXT", "CNAME")
+
+
+def dig_records(name: str) -> dict[str, list[str]] | None:
+    """Extra record types with ``dig +short`` (None when dig is not installed)."""
+    from atad.core.execution import resolve_executable, run_command
+
+    dig = resolve_executable("dig")
+    if not dig:
+        return None
+    out: dict[str, list[str]] = {}
+    for rtype in DIG_TYPES:
+        res = run_command([dig, "+short", "+time=2", "+tries=1", name, rtype],
+                          timeout=8, max_output=256 * 1024)
+        lines = [ln.strip() for ln in res.stdout.decode("utf-8", "replace").splitlines()
+                 if ln.strip() and not ln.startswith(";")] if res.ok else []
+        if lines:
+            out[rtype] = lines
+    return out
+
+
 def collect_dns(target: str) -> dict[str, Any]:
     try:
         ipaddress.ip_address(target)
@@ -242,6 +309,9 @@ def collect_dns(target: str) -> dict[str, Any]:
             rec["answers"] = [name, *aliases]
         else:
             rec["answers"] = resolve_name(target)
+            extra = dig_records(target)
+            if extra is not None:
+                rec["records"] = extra
         rec["error"] = None
     except concurrent.futures.TimeoutError:
         rec["answers"], rec["error"] = [], f"no answer within {DNS_TIMEOUT}s"
@@ -258,9 +328,19 @@ def dns_to_evidence(cap: dict, ctx: ParseContext) -> list[Evidence]:
             obs.append(Observable(type="ip", value=v))
         except ValueError:
             obs.append(Observable(type="domain", value=v))
+    for rtype, values in (cap.get("records") or {}).items():
+        if rtype in ("MX", "NS", "CNAME"):
+            for v in values:
+                host = v.split()[-1].rstrip(".")
+                try:
+                    obs.append(Observable(type="domain", value=host))
+                except ValueError:
+                    pass
     if cap["answers"]:
         summary = f"DNS {cap['type']}: {q} -> {', '.join(cap['answers'])}"
     else:
         summary = f"DNS {cap['type']}: {q} — {cap['error']}"
+    if cap.get("records"):
+        summary += " (" + "; ".join(f"{k} {len(v)}" for k, v in cap["records"].items()) + ", via dig)"
     return [Evidence(**base_fields(ctx, SourceModule.NET, "system resolver"),
                      kind=EvidenceKind.DNS_RECORD, summary=summary, data=cap, observables=obs)]

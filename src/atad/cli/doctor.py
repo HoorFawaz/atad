@@ -11,7 +11,7 @@ from typing import Optional
 import typer
 
 from atad.cli.context import handle_errors, state
-from atad.core.platform import WINDOWS, current_os, is_elevated, local_hostname, os_description
+from atad.core.platform import LINUX, WINDOWS, current_os, is_elevated, local_hostname, os_description
 from atad.core.tool_registry import ToolRegistry
 
 
@@ -35,10 +35,12 @@ def doctor(
     admin = {True: "yes", False: "no", None: "unknown"}[elevated]
     typer.echo(f"  admin    : {admin}")
     if elevated is False:
-        typer.secho("  note     : Security and Sysmon logs need admin rights.", fg=typer.colors.YELLOW)
-    if current_os() != WINDOWS:
+        need = ("Security and Sysmon logs need admin rights." if current_os() == WINDOWS
+                else "auth.log, audit.log and other users' files need root.")
+        typer.secho(f"  note     : {need}", fg=typer.colors.YELLOW)
+    if current_os() not in (WINDOWS, LINUX):
         typer.secho(
-            f"  note     : the MVP targets Windows; on {current_os()} some checks are not used.",
+            f"  note     : atad supports Windows and Linux; on {current_os()} some checks are not used.",
             fg=typer.colors.YELLOW,
         )
 

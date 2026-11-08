@@ -38,7 +38,7 @@ RULE_DESCRIPTIONS = {
     "YARA": "A file matched a YARA rule",
     "S1": "PowerShell started with an encoded command",
     "S2": "A file whose real type does not match its name",
-    "S3": "An auto-start entry that runs a program from a user-writable folder",
+    "S3": "An auto-start entry that runs a program from a user-writable folder or downloads code",
     "R1": "Repeated failed logons from one source, with or without a later success",
     "R2": "A process connected to a known indicator",
     "R3": "A file that matched YARA was executed",

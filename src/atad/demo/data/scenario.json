@@ -87,13 +87,13 @@
     {"rule": "R2", "title": "invoice.pdf.exe connected to known indicator 203.0.113.50", "why": "ProcessGuid + PID/path link"},
     {"rule": "R3", "title": "YARA-flagged file was executed: invoice.pdf.exe", "needs": "yara", "why": "same SHA-256"},
     {"rule": "R5", "title": "Possible coordinated activity on LAB-WS-07", "why": "many findings within minutes"},
-    {"rule": "S3", "title": "Auto-start from a user-writable folder: invoice.pdf.exe", "why": "Run key WinUpdate points to AppData\\Roaming"},
-    {"rule": "R4", "from": "Auto-start from a user-writable folder: invoice.pdf.exe", "title": "Indicator from the Run key found in other sources", "why": "Sysmon 11 shows the dropper writing that same file"},
+    {"rule": "S3", "title": "Suspicious auto-start: invoice.pdf.exe", "why": "Run key WinUpdate points to AppData\\Roaming"},
+    {"rule": "R4", "from": "Suspicious auto-start: invoice.pdf.exe", "title": "Indicator from the Run key found in other sources", "why": "Sysmon 11 shows the dropper writing that same file"},
     {"rule": "R4", "from": "invoice.pdf.exe connected to known indicator 203.0.113.50", "title": "Indicator from invoice.pdf.exe connection found in other events", "why": "the dropper also copied itself to AppData\\Roaming (Sysmon 11)"},
     {"rule": "R4", "from": "powershell.exe connected to known indicator 203.0.113.50", "title": "Indicator from PowerShell connection found in other events", "why": "the same PowerShell wrote invoice.pdf.exe (Sysmon 11)"}
   ],
   "known_false_positives": [
-    {"rule": "S3", "title": "Auto-start from a user-writable folder: Spotify.exe", "why": "Legitimate per-user app installed in AppData\\Roaming. S3 cannot tell it apart by location alone, which is why S3 has low confidence."}
+    {"rule": "S3", "title": "Suspicious auto-start: Spotify.exe", "why": "Legitimate per-user app installed in AppData\\Roaming. S3 cannot tell it apart by location alone, which is why S3 has low confidence."}
   ],
   "decoys": [
     "3 failed logons by ahmed from 10.66.0.20 then success (below the threshold)",
