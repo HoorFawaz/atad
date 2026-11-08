@@ -8,7 +8,7 @@
 
 | Decision | Choice | Reason |
 |---|---|---|
-| MVP platform | **Windows first, Linux next (M9)** | Sysmon + EVTX give the richest evidence for the demo. Linux follows as milestone M9 with Linux-native tools replacing the Windows-only ones (§3.1). |
+| Platforms | **Windows and Linux** | Sysmon + EVTX give the richest evidence on Windows; on Linux, Linux-native tools cover the same checks (§3.1). |
 | Where data is collected | **Local mode + Import mode** | Host, log and file evidence can only be collected from the machine atad runs on. |
 | Meaning of `--target` | Network target only | It never changes where host/log/file data comes from. |
 | Storage | SQLite per case + raw files on disk | Simple, portable, exportable. |
@@ -22,8 +22,8 @@
 | `import` | Analyst imports files copied from the suspect machine (`--path`) | Value given with `--source-host`, marked as *analyst-declared* |
 | `network` | Nmap / ping / DNS against an authorized `--target` | The scanned IP / hostname |
 
-This removes the gap where a remote `--target` would have been labelled with
-data that was actually collected from the analyst's own machine.
+So a remote `--target` is never labelled with data that was collected on the
+analyst's own machine.
 
 ---
 

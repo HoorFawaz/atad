@@ -214,7 +214,7 @@ def test_timeline(scenario):
 def test_thresholds_and_disabled_rules(scenario):
     r = correlate(scenario.repo, CorrelationConfig(r1_min_failures=4, disabled_rules=("S2", "R5")))
     rules = r.by_rule
-    assert rules["R1"] == 3          # 10.66.0.20 now counts too
+    assert rules["R1"] == 3          # 10.66.0.20 counts too
     assert "S2" not in rules and "R5" not in rules
 
 
