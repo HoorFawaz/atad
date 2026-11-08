@@ -35,13 +35,15 @@ SUPPORTED: dict[str, set[int]] = {
 }
 
 # Short names used by `atad log search --keyword ...`
-KEYWORDS: dict[str, set[tuple[str, int]]] = {
-    "failed_login": {(SECURITY, 4625)},
-    "successful_login": {(SECURITY, 4624)},
-    "process_created": {(SECURITY, 4688), (SYSMON, 1)},
-    "user_created": {(SECURITY, 4720)},
-    "network_connection": {(SYSMON, 3)},
+KEYWORDS: dict[str, set[tuple[str, int | str]]] = {
+    "failed_login": {(SECURITY, 4625), ("auth", "ssh_failed"), ("journal", "ssh_failed")},
+    "successful_login": {(SECURITY, 4624), ("auth", "ssh_accepted"), ("journal", "ssh_accepted")},
+    "process_created": {(SECURITY, 4688), (SYSMON, 1), ("audit", "execve")},
+    "user_created": {(SECURITY, 4720), ("auth", "user_created"), ("journal", "user_created")},
+    "network_connection": {(SYSMON, 3), ("audit", "connect")},
     "file_created": {(SYSMON, 11)},
+    "sudo": {("auth", "sudo"), ("journal", "sudo"), ("auth", "sudo_failed"), ("journal", "sudo_failed")},
+    "service_started": {("journal", "service_started")},
 }
 
 LOGON_TYPES = {

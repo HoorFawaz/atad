@@ -48,6 +48,6 @@ def test_import_errors(tmp_path):
     empty.mkdir()
     r = runner.invoke(app, ["--home", str(home), "log", "import", "--path", str(empty),
                             "--source-host", "X"])
-    assert r.exit_code == 2 and "No .evtx files" in r.output
+    assert r.exit_code == 2 and "No supported log files" in r.output
     r = runner.invoke(app, ["--home", str(home), "log", "--only", "security", "--skip", "sysmon"])
     assert r.exit_code == 2

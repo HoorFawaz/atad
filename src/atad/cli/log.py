@@ -16,18 +16,21 @@ from atad.modules.checks import select_checks
 from atad.modules.logs.evtx_reader import DEFAULT_MAX_EVENTS
 from atad.modules.logs.mapping import KEYWORDS
 from atad.modules.logs.runner import (
-    CHECKS,
+    LINUX_CHECKS,
+    WINDOWS_CHECKS,
     DEFAULT_HOURS,
     LogRunResult,
     run_log_import,
     run_log_live,
+    checks_for_os,
     search_logs,
     summarize,
 )
 from atad.utils.validation import validate_evidence_path
 
 app = typer.Typer(
-    help="Windows event logs: Security (4624, 4625, 4688, 4720) and Sysmon (1, 3, 11).",
+    help="Logs. Windows: Security (4624, 4625, 4688, 4720) and Sysmon (1, 3, 11). "
+         "Linux: auth.log/secure (SSH, sudo, useradd), journal, auditd (execve, connect).",
     invoke_without_command=True,
 )
 
@@ -47,16 +50,17 @@ _COLOR = {
 @handle_errors
 def log_live(
     ctx: typer.Context,
-    only: Optional[str] = typer.Option(None, "--only", help=f"Only these logs: {','.join(CHECKS)}"),
+    only: Optional[str] = typer.Option(
+        None, "--only", help=f"Only these logs. Windows: {','.join(WINDOWS_CHECKS)}; Linux: {','.join(LINUX_CHECKS)}"),
     skip: Optional[str] = typer.Option(None, "--skip", help="All logs except these."),
     hours: int = typer.Option(DEFAULT_HOURS, "--hours", help="How far back to collect."),
     case: Optional[str] = CaseOpt,
     max_events: int = MaxEventsOpt,
 ) -> None:
-    """Collect logs from THIS machine (run atad on the suspect machine, as admin)."""
+    """Collect logs from THIS machine (run atad on the suspect machine, as admin/root)."""
     if ctx.invoked_subcommand is not None:
         return
-    selection = select_checks(CHECKS, only, skip)
+    selection = select_checks(checks_for_os(), only, skip)
     oc, _ = get_or_create_case(case, "logs: live collection")
     result = run_log_live(oc, selection.selected, excluded=selection.excluded, hours=hours,
                           max_events=max_events)
@@ -67,17 +71,23 @@ def log_live(
 @app.command("import")
 @handle_errors
 def log_import(
-    path: str = typer.Option(..., "--path", help=".evtx file or folder copied from the suspect machine."),
+    path: str = typer.Option(..., "--path", help="Log file or folder copied from the suspect machine."),
     source_host: str = typer.Option(..., "--source-host", help="Machine the logs came from."),
     case: Optional[str] = CaseOpt,
     max_events: int = MaxEventsOpt,
+    tz: str = typer.Option("UTC", "--timezone",
+                           help="Time zone of syslog lines that have none (UTC, +03:00, Asia/Riyadh)."),
 ) -> None:
-    """Import .evtx files copied from another machine."""
+    """Import logs copied from another machine: .evtx, auth.log/secure, journal JSON, audit.log."""
+    from atad.modules.logs.linux_runner import parse_timezone
+
     target = validate_evidence_path(path)
+    parse_timezone(tz)                         # validate before creating a case
     oc, _ = get_or_create_case(case, f"logs: {source_host}")
-    result = run_log_import(oc, target, source_host, max_events=max_events)
+    result = run_log_import(oc, target, source_host, max_events=max_events, tz_name=tz)
     if not result.outcomes:
-        typer.secho(f"No .evtx files found in {target}", fg=typer.colors.YELLOW)
+        typer.secho(f"No supported log files found in {target} "
+                    "(.evtx, auth.log/secure, journal JSON, audit.log)", fg=typer.colors.YELLOW)
         raise typer.Exit(code=2)
     _print(result, f"import from {target}")
     _exit(result)
@@ -131,7 +141,7 @@ def _print(r: LogRunResult, label: str) -> None:
         if st:
             line = f"    records read: {st.records_read}, stored: {len(o.evidence)}"
             if sum(o.unsupported.values()):
-                line += f", other event types ignored: {sum(o.unsupported.values())}"
+                line += f", other entries ignored: {sum(o.unsupported.values())}"
             typer.echo(line)
             if st.truncated:
                 typer.secho("    stopped at the event limit — not every record was read (use --max-events)",
@@ -149,7 +159,7 @@ def _print(r: LogRunResult, label: str) -> None:
                     f"    note: events say computer {', '.join(sorted(o.computers))}, "
                     f"not {r.host} — check the source", fg=typer.colors.YELLOW)
 
-    failed = [e for e in r.evidence if e.data.get("event_id") == 4625]
+    failed = [e for e in r.evidence if e.data.get("outcome") == "failure"]
     if failed:
         ips = Counter(e.data.get("source_ip") or "?" for e in failed)
         typer.echo()

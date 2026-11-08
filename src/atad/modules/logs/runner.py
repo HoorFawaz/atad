@@ -1,7 +1,12 @@
 # Copyright (C) 2026 Hoor Fawaz
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
-"""Runs the LOG module: live export on Windows, or import of copied .evtx files."""
+"""Runs the LOG module.
+
+Windows: live export with wevtutil, or import of copied .evtx files.
+Linux:   live auth.log / journal / auditd (see linux_runner), or import of
+         copied auth/secure/syslog files, journal JSON exports and audit.log.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +19,7 @@ from atad.adapters.base import ParseContext
 from atad.adapters.catalog import EvtxRust, PythonEvtx, Sysmon, Wevtutil
 from atad.cases.manager import OpenCase
 from atad.core.execution import execute_to_file, import_file, record_skipped
-from atad.core.platform import WINDOWS, current_os, local_hostname
+from atad.core.platform import LINUX, WINDOWS, current_os, local_hostname
 from atad.evidence.models import (
     CollectionMode,
     Evidence,
@@ -29,11 +34,22 @@ from atad.modules.logs.evtx_reader import (
     iter_evtx_xml,
     parse_event_xml,
 )
+from atad.modules.logs import linux_runner as lxr
+from atad.modules.logs.linux import detect_format
 from atad.modules.logs.mapping import SECURITY, SUPPORTED, SYSMON, event_to_evidence, is_supported
 from atad.utils.validation import validate_source_host
 
-CHECKS = ["security", "sysmon"]
+WINDOWS_CHECKS = ["security", "sysmon"]
+LINUX_CHECKS = lxr.LINUX_CHECKS
 CHANNEL_FOR_CHECK = {"security": SECURITY, "sysmon": SYSMON}
+
+
+def checks_for_os(os_name: str | None = None) -> list[str]:
+    """Log sources of the platform atad runs on (Linux names elsewhere than Windows)."""
+    return LINUX_CHECKS if (os_name or current_os()) == LINUX else WINDOWS_CHECKS
+
+
+CHECKS = WINDOWS_CHECKS   # kept for compatibility; use checks_for_os()
 
 DEFAULT_HOURS = 24
 MAX_HOURS = 24 * 90
@@ -128,15 +144,43 @@ def find_evtx_files(path: Path) -> list[Path]:
                   if p.is_file() and not p.is_symlink() and p.suffix.lower() == ".evtx")
 
 
+def find_log_files(path: Path) -> list[tuple[Path, str]]:
+    """(file, format) for every supported log under ``path``.
+
+    .evtx files are taken by name (and checked later); other files by content:
+    journal JSON, audit.log, syslog-style auth logs. Compressed rotations (.gz)
+    are not read.
+    """
+    files = [path] if path.is_file() else sorted(
+        p for p in path.rglob("*") if p.is_file() and not p.is_symlink())
+    out = []
+    for p in files:
+        if p.suffix.lower() == ".evtx":
+            out.append((p, "evtx"))
+            continue
+        fmt = detect_format(p)
+        if fmt in ("journal", "audit", "syslog", "evtx"):
+            out.append((p, fmt))
+    return out
+
+
 def run_log_import(case: OpenCase, path: Path, source_host: str,
-                   max_events: int = DEFAULT_MAX_EVENTS) -> LogRunResult:
-    """Import .evtx files copied from another machine."""
+                   max_events: int = DEFAULT_MAX_EVENTS, tz_name: str | None = None) -> LogRunResult:
+    """Import logs copied from another machine (.evtx, auth/secure/syslog, journal JSON, audit.log)."""
     host = validate_source_host(source_host)
+    tz, tz_label = lxr.parse_timezone(tz_name)
     mode = CollectionMode.IMPORT
     result = LogRunResult(case=case, host=host, collection_mode=mode)
     tool, version = parser_tool()
 
-    for src in find_evtx_files(path):
+    def ctx_for(ex: Execution, t: str):
+        return _ctx(case, ex, host, mode, True, None, t)
+
+    for src, fmt in find_log_files(path):
+        if fmt != "evtx":
+            lxr.import_linux_file(case, result, src, fmt, host=host, tz=tz, tz_label=tz_label,
+                                  max_events=max_events, ctx_for=ctx_for, source_outcome=SourceOutcome)
+            continue
         if not is_evtx(src):
             ex = record_skipped(case, module=SourceModule.LOG, tool=tool,
                                 collection_mode=mode, status=ExecutionStatus.UNAVAILABLE,
@@ -184,11 +228,29 @@ def run_log_live(case: OpenCase, checks: list[str], *, excluded: list[str] | Non
     mode = CollectionMode.LOCAL
     result = LogRunResult(case=case, host=host, collection_mode=mode)
     excluded = excluded or []
+
+    if any(c in LINUX_CHECKS for c in checks + excluded):
+        if current_os() != LINUX:
+            for c in LINUX_CHECKS:
+                if c in checks:
+                    ex = record_skipped(case, module=SourceModule.LOG, tool=c, collection_mode=mode,
+                                        status=ExecutionStatus.UNAVAILABLE,
+                                        reason=f"Linux log sources are read on Linux only (this is {current_os()})",
+                                        target=c)
+                    result.outcomes.append(SourceOutcome(c, ex))
+            return result
+
+        def ctx_for(ex: Execution, t: str):
+            return _ctx(case, ex, host, mode, False, None, t)
+
+        lxr.run_linux_live(case, result, checks, excluded, hours, max_events, ctx_for, SourceOutcome)
+        return result
+
     tool, version = parser_tool()
     on_windows = current_os() == WINDOWS
     wevtutil = Wevtutil().detect() if on_windows else None
 
-    for check in CHECKS:
+    for check in WINDOWS_CHECKS:
         channel = CHANNEL_FOR_CHECK[check]
         if check in excluded:
             ex = record_skipped(case, module=SourceModule.LOG, tool="wevtutil",
@@ -200,8 +262,8 @@ def run_log_live(case: OpenCase, checks: list[str], *, excluded: list[str] | Non
             continue
         reason = None
         if not on_windows:
-            reason = (f"live Windows log collection is not available on {current_os()} "
-                      "(use `atad log import`; Linux logs come in M9)")
+            reason = (f"Windows event logs are exported on Windows only (this is {current_os()}; "
+                      "use `atad log --only auth,journal,audit` on Linux, or `atad log import`)")
         elif not wevtutil or not wevtutil.available:
             reason = "wevtutil not found"
         elif check == "sysmon" and not Sysmon().detect().available:
@@ -250,7 +312,12 @@ def search_logs(case: OpenCase, keyword: str) -> list[Evidence]:
     return sorted(hits, key=lambda e: (e.event_time is None, e.event_time, e.id))
 
 
+def _event_label(e: Evidence) -> str:
+    ch = e.data.get("channel")
+    name = {SECURITY: "Security", SYSMON: "Sysmon"}.get(ch, ch)
+    return f"{name} {e.data.get('event_id')}"
+
+
 def summarize(outcome: SourceOutcome) -> dict[str, Any]:
-    by_event = Counter(f"{'Security' if e.data['channel'] == SECURITY else 'Sysmon'} {e.data['event_id']}"
-                       for e in outcome.evidence)
+    by_event = Counter(_event_label(e) for e in outcome.evidence)
     return {"by_event": dict(sorted(by_event.items()))}

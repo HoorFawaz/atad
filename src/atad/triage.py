@@ -33,8 +33,7 @@ from atad.modules.files.runner import run_files
 from atad.modules.host.runner import CHECKS as HOST_CHECKS
 from atad.modules.host.runner import run_host
 from atad.modules.ioc.loader import load_ioc_file
-from atad.modules.logs.runner import CHECKS as LOG_CHECKS
-from atad.modules.logs.runner import run_log_live
+from atad.modules.logs.runner import checks_for_os, run_log_live
 from atad.modules.net.runner import run_net
 from atad.reports.exports import export_case, export_timeline
 from atad.reports.writer import WrittenReport, write_reports
@@ -125,7 +124,7 @@ def run_triage(oc: OpenCase, profile: Profile, modules: list[str], *,
         res.steps.append(StepResult("host", "skipped", "left out (--only/--skip)"))
 
     if "logs" in modules:
-        r = run_log_live(oc, LOG_CHECKS, hours=hours or profile.log_hours)
+        r = run_log_live(oc, checks_for_os(), hours=hours or profile.log_hours)
         st, note = _status([o.execution for o in r.outcomes])
         res.steps.append(StepResult("logs", st, note or f"last {hours or profile.log_hours} h",
                                     len(r.evidence)))

@@ -328,12 +328,25 @@ def _dense_enough(burst: list[Evidence], window: timedelta, minimum: int) -> boo
 def rule_bruteforce(view: CaseView, cfg: CorrelationConfig) -> list[RuleResult]:
     window = timedelta(minutes=cfg.r1_window_minutes)
     by_src: dict[tuple[str, str], list[Evidence]] = defaultdict(list)
-    for e in view.kind(EvidenceKind.LOGON):
+    seen: dict[tuple, str] = {}
+    duplicates: Counter = Counter()
+    for e in sorted(view.kind(EvidenceKind.LOGON), key=lambda x: (x.event_time is None, x.event_time, x.id)):
         ip, t = e.data.get("source_ip"), e.event_time
-        if ip and t and e.data.get("outcome") in ("failure", "success"):
-            by_src[(host_key(e.host), ip)].append(e)
+        if not (ip and t and e.data.get("outcome") in ("failure", "success")):
+            continue
+        # The same logon written to two logs (auth.log and the journal on
+        # Ubuntu) is one attempt, not two.
+        fields = e.data.get("fields") if isinstance(e.data.get("fields"), dict) else {}
+        key = (host_key(e.host), t.replace(microsecond=0), ip, (e.data.get("user") or "").lower(),
+               e.data["outcome"], fields.get("port"))
+        channel = e.data.get("channel") or e.source_tool
+        if key in seen and seen[key] != channel:
+            duplicates[(host_key(e.host), ip)] += 1
+            continue
+        seen.setdefault(key, channel)
+        by_src[(host_key(e.host), ip)].append(e)
     out = []
-    for (_, ip), evs in sorted(by_src.items()):
+    for (hk, ip), evs in sorted(by_src.items()):
         evs.sort(key=lambda x: x.event_time)
         fails = [e for e in evs if e.data["outcome"] == "failure"]
         successes = [e for e in evs if e.data["outcome"] == "success"]
@@ -347,6 +360,9 @@ def rule_bruteforce(view: CaseView, cfg: CorrelationConfig) -> list[RuleResult]:
                 accounts += f" and {len(targets) - 3} more"
             head = (f"{len(burst)} failed logons from {ip} on {burst[0].host} between "
                     f"{fmt_time(start)} and {fmt_time(end)} (accounts: {accounts})")
+            if duplicates[(hk, ip)]:
+                head += (f"; {duplicates[(hk, ip)]} record(s) that appeared in two logs "
+                         "were counted once")
             # First success per account during the burst or within the window after it
             won: dict[str, Evidence] = {}
             for s in successes:
