@@ -317,8 +317,29 @@ GitHub Actions runs both on every push, on Windows and Linux with Python 3.11, 3
 
 ## Roadmap
 
-| Status | Item |
+### Released in 0.1.0
+
+| Area | Included |
 |---|---|
+| Collection | host, event logs, files, network and IOC modules on Windows and Linux |
+| Analysis | correlation rules with stated confidence, Sigma support, timeline |
+| Reporting | formal HTML / JSON report, timeline export, sealed case archive |
+| Workflow | triage profiles, simulated demo with metrics, single-file Windows build |
+
+### Future expansion
+
+| Area | What it would add | Built on |
+|---|---|---|
+| **Red team** | Reconnaissance, Active Directory attack-path review and configuration checks for authorized assessments, inside the case scope like every network check | Nmap, BloodHound data, ATAD scope rules |
+| **Memory forensics** | Processes, network objects and injected code from memory images, linked to disk and log evidence | Volatility 3 |
+| **Network traffic** | Connections, DNS and alerts from packet captures as evidence | Zeek, Suricata |
+| **Windows artifacts** | Execution and persistence history: Prefetch, Amcache, ShimCache, registry hives | KAPE and Velociraptor collections |
+| **Cloud and identity** | Sign-ins and admin activity from cloud logs | Microsoft Entra ID, Microsoft 365, AWS CloudTrail |
+| **macOS** | Unified log, launch agents and daemons | native macOS tools |
+| **Threat intelligence** | Indicators from shared feeds, and optional reputation lookups | STIX 2.1, MISP |
+| **SIEM integration** | Findings and timelines sent to the SOC's own platform | Elastic, Splunk, Microsoft Sentinel |
+
+---|---|
 | Done | Defensive modules: host, logs, files, network, IOC (Windows and Linux) |
 | Done | Correlation rules, Sigma support, formal reports and exports |
 | Done | Triage profiles, simulated demo with metrics, single-file Windows build |
