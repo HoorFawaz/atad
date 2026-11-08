@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Hoor Fawaz
+# Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz)
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
 """SIMULATED Linux log samples in the exact formats of OpenSSH, sudo, useradd,

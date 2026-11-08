@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Hoor Fawaz
+# Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz)
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 title: Download Into a Temporary Folder With curl or wget
 id: 2b7d6a0e-91a4-4c6e-8f0b-3e4d5c6a7b81
@@ -6,7 +6,7 @@ status: experimental
 description: curl or wget saving a file into /tmp, /dev/shm or /var/tmp, where attackers often drop tools because any user can write there.
 references:
     - https://attack.mitre.org/techniques/T1105/
-author: Hoor Fawaz (ATAD)
+author: ATAD Team (Hoor Fawaz, Danah Fawaz)
 date: 2026-11-08
 tags:
     - attack.command-and-control

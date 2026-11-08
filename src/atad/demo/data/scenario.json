@@ -1,5 +1,5 @@
 {
-  "_license": "Copyright (C) 2026 Hoor Fawaz. SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0",
+  "_license": "Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz). SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0",
   "_note": "SIMULATED. Every host, user, address and file here is invented for the demo. Addresses use documentation and lab ranges (RFC 5737, 10.66.0.0/16). The dropper is a harmless text file with a marker string.",
   "name": "DEMO — RDP password guessing, encoded PowerShell and a disguised dropper (simulated)",
   "description": "An attacker guesses sara's password over RDP, runs encoded PowerShell, downloads invoice.pdf.exe, which calls a C2 server and adds a Run key. Benign look-alike activity is mixed in as decoys.",

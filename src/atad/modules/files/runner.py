@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Hoor Fawaz
+# Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz)
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
 """Runs the FILES module checks for a case and stores their evidence."""

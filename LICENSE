@@ -2,8 +2,8 @@ ATAD Source-Available License
 Version 1.0
 
 SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
-Copyright (C) 2026 Hoor Fawaz. All rights not expressly granted
-in this license are reserved.
+Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz).
+All rights not expressly granted in this license are reserved.
 
 ATAD (عَتاد) is source-available software. This license is NOT an
 open source license approved by the Open Source Initiative, because
@@ -13,7 +13,10 @@ It is in the file LICENSE.ar.
 
 1. DEFINITIONS
 
-"Licensor" means Hoor Fawaz, the author and copyright owner of ATAD.
+"Licensor" means the ATAD Team: Hoor Fawaz and Danah Fawaz, the
+authors and joint copyright owners of ATAD. A permission or notice
+from the Licensor is valid only when it is in writing and agreed by
+both of them.
 
 "Software" means ATAD (عَتاد) as published by the Licensor under
 this license, in source or executable form, including its
@@ -99,7 +102,8 @@ the following are met:
     same terms;
 (d) You keep all copyright, license and attribution notices, and You
     show this notice where users will see it:
-    "Based on ATAD (عَتاد) by Hoor Fawaz - https://github.com/HoorFawaz";
+    "Based on ATAD (عَتاد) by the ATAD Team (Hoor Fawaz, Danah Fawaz) -
+    https://github.com/HoorFawaz/atad";
 (e) for a Modified Version, You include a file named MODIFICATIONS
     stating Your name, the date of each modification and a summary
     of what changed; You mark the changed files; and You give it a
@@ -143,7 +147,7 @@ through a separate commercial license:
 
 If You make the Software available to others over a network without
 Compensation, You must show them, where technically possible, a
-notice that the service uses ATAD by Hoor Fawaz, with a link to the
+notice that the service uses ATAD by the ATAD Team, with a link to the
 official project.
 
 8. CONTRIBUTIONS
@@ -193,7 +197,7 @@ This license does not transfer ownership of the Software. The
 Licensor keeps all rights not expressly granted, including the right
 to publish the Software, or other versions of it, under other terms,
 and to grant commercial licenses. Licenses already granted under this
-license for a released version are not withdrawn. The author's moral
+license for a released version are not withdrawn. The authors' moral
 rights remain in all cases.
 
 15. NO WARRANTY AND NO LIABILITY
@@ -215,4 +219,5 @@ the official text. If the two texts differ, the Arabic text prevails.
 
 18. REQUESTING PERMISSION
 
-To request any permission under Section 5: hoorfawaz.it@gmail.com
+To request any permission under Section 5, contact
+the ATAD Team through https://github.com/HoorFawaz or https://github.com/danahfawaz.

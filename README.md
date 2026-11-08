@@ -161,9 +161,18 @@ pytest
 ruff check src tests packaging    # code checks (also run by CI on every push)
 ```
 
+## ATAD Team · فريق عَتاد
+
+| | Part · الجزء | GitHub |
+|---|---|---|
+| **Hoor Fawaz** · حور فواز | Core, correlation rules, IOC, reports, license and build · الأساس، قواعد الربط، المؤشرات، التقارير، الرخصة والبناء | [@HoorFawaz](https://github.com/HoorFawaz) |
+| **Danah Fawaz** · دانه فواز | Logs, host, files, network, Sigma, triage and demo · السجلات، الجهاز، الملفات، الشبكة، Sigma، الفرز والعرض التجريبي | [@danahfawaz](https://github.com/danahfawaz) |
+
+ATAD is owned jointly by the ATAD Team. · عَتاد ملكية مشتركة لفريق عَتاد.
+
 ## License
 
-Copyright (C) 2026 Hoor Fawaz
+Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz)
 
 ATAD is **source-available** under the ATAD Source-Available License 1.0
 ([English](LICENSE) · [العربية — النص الرسمي](LICENSE.ar)). It is not an
@@ -177,7 +186,7 @@ OSI-approved open source license.
 | Selling ATAD, bundling it in a paid or closed product, or offering it as a paid service | Written permission required |
 
 Reports and evidence produced with ATAD belong to their user.
-For commercial licensing: hoorfawaz.it@gmail.com
+For commercial licensing, contact the ATAD Team through https://github.com/HoorFawaz or https://github.com/danahfawaz.
 
 Third-party components and their licenses are listed in [NOTICE](NOTICE).
 Use of the ATAD name and logo is covered by [TRADEMARKS.md](TRADEMARKS.md).

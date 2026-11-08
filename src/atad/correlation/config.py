@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Hoor Fawaz
+# Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz)
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 
 """Correlation thresholds. Defaults can be overridden with a YAML file."""

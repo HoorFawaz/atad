@@ -1,7 +1,7 @@
 # ATAD name and logo policy
 
 "ATAD", "عَتاد" and the ATAD logo identify the official project by
-Hoor Fawaz. This policy explains how you may use them. It is separate
+the ATAD Team (Hoor Fawaz and Danah Fawaz). This policy explains how you may use them. It is separate
 from the software license: the license covers the code, this policy
 covers the name.
 
@@ -10,7 +10,7 @@ covers the name.
 - Saying truthfully that your work is "based on ATAD" or "works with ATAD".
 - Naming an **unmodified** official release "ATAD" when you redistribute it for free.
 - Writing about ATAD in articles, research, courses, talks and reviews.
-- Linking to the official project: https://github.com/HoorFawaz
+- Linking to the official project: https://github.com/HoorFawaz/atad
 
 ## Needs written permission
 
@@ -30,7 +30,7 @@ SHA-256 hashes published with every release.
 
 ## Contact
 
-hoorfawaz.it@gmail.com
+The ATAD Team: https://github.com/HoorFawaz · https://github.com/danahfawaz
 
 ---
 

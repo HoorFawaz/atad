@@ -5,6 +5,8 @@ All notable changes to atad are listed here. Versions follow [Semantic Versionin
 ## [Unreleased]
 
 ### Added
+- Joint ownership by the ATAD Team (Hoor Fawaz and Danah Fawaz) in the license, file headers,
+  README, NOTICE, TRADEMARKS and the report footer.
 - Case management, evidence model and per-case SQLite database (M1).
 - Safe execution engine, tool adapters and `atad doctor` (M2).
 - `atad files`: SHA-256/MD5, metadata, real file type, YARA scanning (M3).

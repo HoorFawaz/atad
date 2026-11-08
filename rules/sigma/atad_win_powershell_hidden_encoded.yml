@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Hoor Fawaz
+# Copyright (C) 2026 ATAD Team (Hoor Fawaz, Danah Fawaz)
 # SPDX-License-Identifier: LicenseRef-ATAD-SAL-1.0
 title: PowerShell Started Hidden With an Encoded Command
 id: 6f1f0d64-3c1b-4f53-9c0e-5a8b6a2d71e1
@@ -7,7 +7,7 @@ description: PowerShell launched with a hidden window and a base64-encoded comma
 references:
     - https://attack.mitre.org/techniques/T1059/001/
     - https://attack.mitre.org/techniques/T1027/
-author: Hoor Fawaz (ATAD)
+author: ATAD Team (Hoor Fawaz, Danah Fawaz)
 date: 2026-11-08
 tags:
     - attack.execution
